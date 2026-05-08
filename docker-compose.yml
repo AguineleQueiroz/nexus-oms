@@ -12,6 +12,9 @@ services:
         condition: service_started
     env_file: ./api/.env
     command: php -S 0.0.0.0:8000 -t public
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
 
   worker-payment:
     build: ./api
@@ -155,3 +158,4 @@ services:
 
 volumes:
   postgres_data:
+  api_vendor:
