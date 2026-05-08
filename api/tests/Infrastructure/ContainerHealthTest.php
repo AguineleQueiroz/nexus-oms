@@ -12,7 +12,7 @@ test('postgresql connects with env credentials', function () {
     $pdo = new PDO("pgsql:host=$host;port=$port;dbname=$db", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    expect($pdo->query('SELECT 1')->fetchColumn())->toBe('1');
+    expect($pdo->query('SELECT 1')->fetchColumn())->toEqual(1);
 });
 
 test('rabbitmq amqp connection succeeds', function () {
@@ -33,7 +33,7 @@ test('redis ping returns pong', function () {
     $redis = new Redis();
     $redis->connect(getenv('REDIS_HOST'), (int) getenv('REDIS_PORT'));
 
-    expect($redis->ping())->toBe('+PONG');
+    expect($redis->ping())->toBeTrue();
 });
 
 test('all required env vars are present', function () {
