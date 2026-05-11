@@ -6,9 +6,9 @@ use App\Exceptions\DuplicateOrderException;
 use PDO;
 use PDOException;
 
-readonly class OrderRepository
+class OrderRepository
 {
-    public function __construct(private PDO $pdo) {}
+    public function __construct(private readonly PDO $pdo) {}
 
     public function save(array $data): array
     {
