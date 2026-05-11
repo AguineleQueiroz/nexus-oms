@@ -7,6 +7,7 @@ use App\Exceptions\InvalidTransitionException;
 use App\Exceptions\OrderNotFoundException;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
+use Random\RandomException;
 
 class OrderService
 {
@@ -133,6 +134,9 @@ class OrderService
         }
     }
 
+    /**
+     * @throws RandomException
+     */
     private function publishAndRecord(array $order, string $eventType): void
     {
         $payload = [

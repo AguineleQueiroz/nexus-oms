@@ -5,9 +5,9 @@ namespace App\Repositories;
 use App\Events\OrderEvent;
 use PDO;
 
-class EventRepository
+readonly class EventRepository
 {
-    public function __construct(private readonly PDO $pdo) {}
+    public function __construct(private PDO $pdo) {}
 
     public function save(OrderEvent $event, string $routingKey, ?string $workerId = null): void
     {

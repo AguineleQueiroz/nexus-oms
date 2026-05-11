@@ -2,12 +2,12 @@
 
 namespace App\Http;
 
-class Response
+readonly class Response
 {
     private function __construct(
-        private readonly int   $status,
-        private readonly array $headers,
-        private readonly mixed $body,
+        private int   $status,
+        private array $headers,
+        private mixed $body,
     ) {}
 
     public static function json(mixed $data, int $status = 200): self

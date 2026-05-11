@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use InvalidArgumentException;
+use Random\RandomException;
 
 final class OrderEvent
 {
@@ -25,6 +26,9 @@ final class OrderEvent
         public readonly array  $payload,
     ) {}
 
+    /**
+     * @throws RandomException
+     */
     public static function create(string $eventType, string $orderId, array $payload): self
     {
         if (!in_array($eventType, self::VALID_TYPES, true)) {
@@ -61,6 +65,9 @@ final class OrderEvent
         ];
     }
 
+    /**
+     * @throws RandomException
+     */
     private static function generateUuid(): string
     {
         $bytes = random_bytes(16);

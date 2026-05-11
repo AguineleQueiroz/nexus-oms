@@ -76,7 +76,7 @@ class Request
         $errors = [];
 
         foreach ($rules as $field => $rule) {
-            if ($rule === 'required' && (! isset($body[$field]) || $body[$field] === '' || $body[$field] === null)) {
+            if ($rule === 'required' && (! isset($body[$field]) || $body[$field] === '')) {
                 $errors[$field] = "{$field} is required";
             }
         }
