@@ -51,8 +51,7 @@ class EventPublisher
     private function declareRetryQueue(): void
     {
         $this->channel->queue_declare('orders.retry', false, true, false, false, false, [
-            'x-dead-letter-exchange'    => ['S', self::EXCHANGE],
-            'x-message-ttl'             => ['I', self::RETRY_TTL_BASE_MS],
+            'x-dead-letter-exchange' => ['S', self::EXCHANGE],
         ]);
     }
 

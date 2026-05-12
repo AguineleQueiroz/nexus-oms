@@ -5,7 +5,9 @@ use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
-// Concrete worker used only in this test file
+/*
+ * Concrete worker used only in this test file
+ */
 class ConcreteWorker extends BaseWorker
 {
     public int  $handleCount = 0;
@@ -21,8 +23,6 @@ class ConcreteWorker extends BaseWorker
 }
 
 afterEach(fn () => Mockery::close());
-
-// --- Helpers ---
 
 function mockMsg(string $eventId = 'evt-001', int $retryCount = 0): AMQPMessage&\Mockery\MockInterface
 {
@@ -68,8 +68,9 @@ function makeWorker(AMQPChannel $channel, PDO $pdo): ConcreteWorker
     return new ConcreteWorker($channel, $redis, $pdo, 'test-worker-1');
 }
 
-// --- Tests ---
-
+/*
+ * Tests implementations
+ */
 it('already-processed event_id skips handle() and calls ack()', function () {
     $channel = Mockery::mock(AMQPChannel::class);
     $msg     = mockMsg('evt-dup');
