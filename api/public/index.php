@@ -19,6 +19,7 @@ use App\Services\EventPublisher;
 use App\Services\HeartbeatService;
 use App\Services\OrderService;
 use App\Services\RabbitMqManagement;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
 
 Dotenv::createUnsafeImmutable(__DIR__ . '/..')->safeLoad();
 
@@ -31,9 +32,17 @@ $pipeline = new Pipeline(
         $redis = new Redis();
         $redis->connect($_ENV['REDIS_HOST'] ?? 'redis', (int) ($_ENV['REDIS_PORT'] ?? 6379));
 
-        $orderRepo   = new OrderRepository($pdo);
-        $eventRepo   = new EventRepository($pdo);
-        $publisher   = new EventPublisher();
+        $amqp    = new AMQPStreamConnection(
+            $_ENV['RABBITMQ_HOST'] ?? 'rabbitmq',
+            (int) ($_ENV['RABBITMQ_PORT'] ?? 5672),
+            $_ENV['RABBITMQ_USER'] ?? 'guest',
+            $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
+        );
+        $channel = $amqp->channel();
+
+        $orderRepo    = new OrderRepository($pdo);
+        $eventRepo    = new EventRepository($pdo);
+        $publisher    = new EventPublisher($channel);
         $orderService = new OrderService($orderRepo, $eventRepo, $publisher);
 
         $orderController = new OrderController($orderService, $orderRepo, $eventRepo);

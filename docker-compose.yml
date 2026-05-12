@@ -18,7 +18,7 @@ services:
 
   worker-payment:
     build: ./api
-    command: php src/Workers/PaymentWorker.php
+    command: php bin/run-worker.php
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -30,12 +30,13 @@ services:
     environment:
       WORKER_TYPE: PaymentWorker
       WORKER_ID: payment-worker-1
-    deploy:
-      replicas: 1
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
 
   worker-notification:
     build: ./api
-    command: php src/Workers/NotificationWorker.php
+    command: php bin/run-worker.php
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -47,12 +48,15 @@ services:
     environment:
       WORKER_TYPE: NotificationWorker
       WORKER_ID: notification-worker-1
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
     deploy:
       replicas: 2
 
   worker-fulfillment:
     build: ./api
-    command: php src/Workers/FulfillmentWorker.php
+    command: php bin/run-worker.php
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -64,10 +68,13 @@ services:
     environment:
       WORKER_TYPE: FulfillmentWorker
       WORKER_ID: fulfillment-worker-1
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
 
   worker-inventory:
     build: ./api
-    command: php src/Workers/InventoryWorker.php
+    command: php bin/run-worker.php
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -79,10 +86,13 @@ services:
     environment:
       WORKER_TYPE: InventoryWorker
       WORKER_ID: inventory-worker-1
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
 
   worker-tracking:
     build: ./api
-    command: php src/Workers/TrackingWorker.php
+    command: php bin/run-worker.php
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -94,10 +104,13 @@ services:
     environment:
       WORKER_TYPE: TrackingWorker
       WORKER_ID: tracking-worker-1
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
 
   worker-audit:
     build: ./api
-    command: php src/Workers/AuditWorker.php
+    command: php bin/run-worker.php
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -109,6 +122,9 @@ services:
     environment:
       WORKER_TYPE: AuditWorker
       WORKER_ID: audit-worker-1
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
 
   dashboard:
     build: ./dashboard
