@@ -3,59 +3,144 @@
     <div v-if="data.length === 0" data-testid="chart-empty" class="chart-empty">
       Sem dados de throughput
     </div>
-    <svg v-else :width="width" :height="height" class="chart-svg">
-      <defs>
-        <linearGradient id="area-gradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="var(--color-amber)" stop-opacity="0.3" />
-          <stop offset="100%" stop-color="var(--color-amber)" stop-opacity="0.02" />
-        </linearGradient>
-      </defs>
-      <path :d="areaPath" fill="url(#area-gradient)" />
-      <path :d="linePath" fill="none" stroke="var(--color-amber)" stroke-width="2" />
-    </svg>
+    <svg v-else ref="svgEl" class="chart-svg" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
+import * as d3 from 'd3'
 import type { ThroughputPoint } from '@/types'
 
 const props = defineProps<{ data: ThroughputPoint[] }>()
+const svgEl = ref<SVGSVGElement | null>(null)
 
-const width  = ref(600)
-const height = ref(160)
-const paddingX = 8
-const paddingY = 12
+const MARGIN = { top: 16, right: 16, bottom: 28, left: 36 }
+const HEIGHT = 160
 
-const xScale = computed(() => {
-  const n = props.data.length
-  return (i: number) => paddingX + (i / Math.max(n - 1, 1)) * (width.value - paddingX * 2)
+const tooltip = ref<{ visible: boolean; x: number; y: number; text: string }>({
+  visible: false, x: 0, y: 0, text: '',
 })
 
-const yScale = computed(() => {
-  const max = Math.max(...props.data.map(d => d.count), 1)
-  return (v: number) => height.value - paddingY - (v / max) * (height.value - paddingY * 2)
-})
+function draw() {
+  const el = svgEl.value
+  if (!el || props.data.length === 0) return
 
-const linePath = computed(() => {
-  return props.data.map((d, i) =>
-    `${i === 0 ? 'M' : 'L'}${xScale.value(i)},${yScale.value(d.count)}`
-  ).join(' ')
-})
+  const totalWidth  = el.clientWidth || 600
+  const width       = totalWidth - MARGIN.left - MARGIN.right
+  const height      = HEIGHT - MARGIN.top - MARGIN.bottom
 
-const areaPath = computed(() => {
-  const bottom = height.value - paddingY
-  const points = props.data.map((d, i) => `L${xScale.value(i)},${yScale.value(d.count)}`).join(' ')
-  const first  = `M${xScale.value(0)},${bottom}`
-  const close  = `L${xScale.value(props.data.length - 1)},${bottom}Z`
-  return first + ' ' + points.replace(/^L/, '') + ' ' + close
-})
+  d3.select(el).selectAll('*').remove()
+
+  const svg = d3.select(el)
+    .attr('viewBox', `0 0 ${totalWidth} ${HEIGHT}`)
+    .attr('preserveAspectRatio', 'xMinYMin meet')
+    .append('g')
+    .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`)
+
+  const x = d3.scalePoint<string>()
+    .domain(props.data.map(d => d.minute))
+    .range([0, width])
+    .padding(0.1)
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(props.data, d => d.count) ?? 1])
+    .nice()
+    .range([height, 0])
+
+  // Gradient definition
+  const defs = d3.select(el).append('defs')
+  const grad = defs.append('linearGradient')
+    .attr('id', 'throughput-gradient')
+    .attr('x1', '0').attr('y1', '0')
+    .attr('x2', '0').attr('y2', '1')
+  grad.append('stop').attr('offset', '0%').attr('stop-color', '#f59e0b').attr('stop-opacity', 0.35)
+  grad.append('stop').attr('offset', '100%').attr('stop-color', '#f59e0b').attr('stop-opacity', 0.02)
+
+  // Grid lines
+  svg.append('g')
+    .attr('class', 'grid')
+    .call(
+      d3.axisLeft(y).tickSize(-width).tickFormat(() => '').ticks(4)
+    )
+    .call(g => {
+      g.select('.domain').remove()
+      g.selectAll('.tick line')
+        .attr('stroke', 'rgba(255,255,255,0.06)')
+        .attr('stroke-dasharray', '3,3')
+    })
+
+  // X axis
+  const tickEvery = Math.max(1, Math.floor(props.data.length / 6))
+  svg.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(
+      d3.axisBottom(x)
+        .tickValues(props.data.filter((_, i) => i % tickEvery === 0).map(d => d.minute))
+        .tickFormat(d => String(d).slice(-5))
+    )
+    .call(g => {
+      g.select('.domain').attr('stroke', 'rgba(255,255,255,0.1)')
+      g.selectAll('.tick line').remove()
+      g.selectAll('.tick text').attr('fill', 'rgba(255,255,255,0.4)').attr('font-size', '10')
+    })
+
+  // Area
+  const area = d3.area<ThroughputPoint>()
+    .x(d => x(d.minute) ?? 0)
+    .y0(height)
+    .y1(d => y(d.count))
+    .curve(d3.curveCatmullRom.alpha(0.5))
+
+  svg.append('path')
+    .datum(props.data)
+    .attr('fill', 'url(#throughput-gradient)')
+    .attr('d', area)
+
+  // Line
+  const line = d3.line<ThroughputPoint>()
+    .x(d => x(d.minute) ?? 0)
+    .y(d => y(d.count))
+    .curve(d3.curveCatmullRom.alpha(0.5))
+
+  svg.append('path')
+    .datum(props.data)
+    .attr('fill', 'none')
+    .attr('stroke', '#f59e0b')
+    .attr('stroke-width', 2)
+    .attr('d', line)
+
+  // Tooltip overlay
+  const bisect = d3.bisector<ThroughputPoint, string>(d => d.minute).left
+
+  svg.append('rect')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('fill', 'transparent')
+    .style('cursor', 'crosshair')
+    .on('mousemove', (event) => {
+      const [mx] = d3.pointer(event)
+      const domain = props.data.map(d => d.minute)
+      const eachBand = width / (domain.length - 1 || 1)
+      const idx = Math.min(Math.round(mx / eachBand), props.data.length - 1)
+      const pt  = props.data[Math.max(0, idx)]
+      if (!pt) return
+      tooltip.value = {
+        visible: true,
+        x: (x(pt.minute) ?? 0) + MARGIN.left,
+        y: y(pt.count) + MARGIN.top,
+        text: `${pt.minute.slice(-5)} — ${pt.count} pedidos`,
+      }
+    })
+    .on('mouseleave', () => { tooltip.value.visible = false })
+}
+
+onMounted(() => nextTick(draw))
+watch(() => props.data, () => nextTick(draw), { deep: true })
 </script>
 
 <style scoped>
-.throughput-chart {
-  width: 100%;
-}
+.throughput-chart { width: 100%; position: relative; }
 .chart-empty {
   color: var(--color-text-muted);
   padding: 40px;
@@ -64,7 +149,8 @@ const areaPath = computed(() => {
 }
 .chart-svg {
   width: 100%;
-  height: auto;
+  height: 160px;
   display: block;
+  overflow: visible;
 }
 </style>

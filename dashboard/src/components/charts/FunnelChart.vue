@@ -1,5 +1,5 @@
 <template>
-  <div class="funnel-chart">
+  <div class="funnel-chart" ref="container">
     <div
       v-for="item in data"
       :key="item.status"
@@ -20,10 +20,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, watch, ref, nextTick } from 'vue'
+import * as d3 from 'd3'
 import type { FunnelItem } from '@/types'
 
 const props = defineProps<{ data: FunnelItem[] }>()
+const container = ref<HTMLElement | null>(null)
 
 const maxCount = computed(() => Math.max(...props.data.map(d => d.count), 1))
 
@@ -33,17 +35,35 @@ function barWidth(count: number): string {
 
 function formatLabel(status: string): string {
   const labels: Record<string, string> = {
-    created:         'Criado',
-    payment_pending: 'Aguard. Pgto',
-    paid:            'Pago',
-    preparing:       'Preparando',
-    ready:           'Pronto',
-    in_transit:      'Em Trânsito',
-    delivered:       'Entregue',
-    cancelled:       'Cancelado',
+    created:          'Criado',
+    payment_pending:  'Aguard. Pgto',
+    paid:             'Pago',
+    picking:          'Separando',
+    shipped:          'Enviado',
+    delivered:        'Entregue',
+    cancelled:        'Cancelado',
+    payment_refused:  'Pgto Recusado',
   }
   return labels[status] ?? status
 }
+
+function animateBars() {
+  if (!container.value) return
+  const max = maxCount.value
+  d3.select(container.value)
+    .selectAll<HTMLElement, FunnelItem>('[data-testid="funnel-bar"]')
+    .data(props.data, d => (d as unknown as FunnelItem)?.status ?? '')
+    .transition()
+    .duration(600)
+    .ease(d3.easeQuadOut)
+    .style('width', (_, i) => {
+      const item = props.data[i]
+      return item ? `${Math.round((item.count / max) * 100)}%` : '0%'
+    })
+}
+
+onMounted(() => nextTick(animateBars))
+watch(() => props.data, () => nextTick(animateBars), { deep: true })
 </script>
 
 <style scoped>
@@ -64,21 +84,21 @@ function formatLabel(status: string): string {
   text-align: right;
 }
 .funnel-track {
-  background: var(--color-surface-2);
+  background: rgba(255,255,255,0.05);
   border-radius: 99px;
   height: 18px;
   overflow: hidden;
 }
 .funnel-bar {
   height: 100%;
-  background: var(--color-primary);
+  background: var(--color-amber, #f59e0b);
   border-radius: 99px;
-  transition: width 0.4s ease;
   min-width: 2px;
 }
 .funnel-count {
   font-size: 12px;
   color: var(--color-text-muted);
   text-align: right;
+  font-family: var(--font-mono);
 }
 </style>

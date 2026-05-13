@@ -8,6 +8,7 @@
       </div>
       <div v-if="loading" class="loading">Carregando…</div>
       <div v-else-if="order" class="detail-body">
+        <OrderPipeline :current-status="order.status" class="pipeline-section" />
         <div class="info-card">
           <div class="info-row"><span>ID</span><code>{{ order.id }}</code></div>
           <div class="info-row"><span>Email</span><span>{{ order.customer_email }}</span></div>
@@ -33,6 +34,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import OrderTimeline from '@/components/orders/OrderTimeline.vue'
+import OrderPipeline from '@/components/orders/OrderPipeline.vue'
 import { api } from '@/services/api'
 import type { OrderDetail } from '@/types'
 
@@ -49,7 +51,7 @@ onMounted(async () => {
   }
 })
 
-const canPay     = computed(() => order.value?.status === 'created')
+const canPay     = computed(() => order.value?.status === 'payment_pending')
 const canAdvance = computed(() => ['paid', 'preparing', 'ready'].includes(order.value?.status ?? ''))
 const canCancel  = computed(() => !['delivered', 'cancelled'].includes(order.value?.status ?? ''))
 

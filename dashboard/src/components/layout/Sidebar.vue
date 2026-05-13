@@ -1,22 +1,63 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <span class="logo-text">Nexus OMS</span>
+      <span class="logo-mark">N</span>
+      <div class="logo-text-group">
+        <span class="logo-title">Nexus</span>
+        <span class="logo-sub">OMS</span>
+      </div>
     </div>
+
     <nav class="sidebar-nav">
-      <router-link to="/"          class="nav-item"><span class="nav-icon">⬛</span><span class="nav-label">Dashboard</span></router-link>
-      <router-link to="/orders"    class="nav-item"><span class="nav-icon">📋</span><span class="nav-label">Pedidos</span></router-link>
-      <router-link to="/consumers" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-label">Workers</span></router-link>
-      <router-link to="/events"    class="nav-item"><span class="nav-icon">⚡</span><span class="nav-label">Eventos</span></router-link>
+      <router-link to="/"          class="nav-item" active-class="" exact-active-class="active">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".9"/>
+          <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5"/>
+          <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5"/>
+          <rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5"/>
+        </svg>
+        <span class="nav-label">Dashboard</span>
+      </router-link>
+
+      <router-link to="/orders"    class="nav-item" active-class="active">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M5 6h6M5 9h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="nav-label">Pedidos</span>
+      </router-link>
+
+      <router-link to="/consumers" class="nav-item" active-class="active">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M2.5 13c0-3.038 2.462-5.5 5.5-5.5s5.5 2.462 5.5 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="nav-label">Workers</span>
+      </router-link>
+
+      <router-link to="/events"    class="nav-item" active-class="active">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2v4l2.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+        <span class="nav-label">Eventos</span>
+      </router-link>
     </nav>
+
+    <div class="sidebar-footer">
+      <div class="system-status">
+        <span class="status-indicator" />
+        <span class="status-label">Sistema operacional</span>
+      </div>
+    </div>
   </aside>
 </template>
 
 <style scoped>
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-primary);
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -24,36 +65,76 @@
   top: 0;
   flex-shrink: 0;
 }
+
 .sidebar-logo {
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--border-secondary);
 }
-.logo-text {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--color-primary);
+.logo-mark {
+  width: 28px; height: 28px;
+  background: var(--gradient-primary);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
 }
+.logo-text-group { display: flex; flex-direction: column; line-height: 1.1; }
+.logo-title { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.02em; }
+.logo-sub   { font-size: 10px; font-weight: 500; color: var(--text-tertiary); letter-spacing: 0.1em; text-transform: uppercase; }
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  padding: 12px 8px;
+  padding: 12px 10px;
   gap: 2px;
+  flex: 1;
 }
 .nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 9px 10px;
   border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  color: var(--text-tertiary);
   text-decoration: none;
   font-size: 13px;
-  transition: background 0.15s, color 0.15s;
+  font-weight: 500;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
-.nav-item:hover,
-.nav-item.router-link-active {
-  background: var(--color-surface-2);
-  color: var(--color-text);
+.nav-item:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
 }
-.nav-icon { font-size: 14px; }
+.nav-item.active {
+  background: var(--accent-primary-light);
+  color: var(--accent-primary);
+}
+.nav-icon {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-secondary);
+}
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.status-indicator {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.status-label { font-size: 11px; color: var(--text-tertiary); }
 </style>

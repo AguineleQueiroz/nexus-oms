@@ -5,7 +5,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Dotenv\Dotenv;
 use App\Database\Connection;
 use App\Events\EventFactory;
-use App\Mail\NullMailer;
+use App\Mail\SmtpMailer;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
 use App\Repositories\ReadModelRepository;
@@ -61,7 +61,11 @@ $worker = match ($workerType) {
     'AuditWorker'        => new AuditWorker($channel, $redis, $pdo, $workerId, $eventRepo, $readModel),
     'FulfillmentWorker'  => new FulfillmentWorker($channel, $redis, $pdo, $workerId, $orderService),
     'InventoryWorker'    => new InventoryWorker($channel, $redis, $pdo, $workerId),
-    'NotificationWorker' => new NotificationWorker($channel, $redis, $pdo, $workerId, new NullMailer()),
+    'NotificationWorker' => new NotificationWorker($channel, $redis, $pdo, $workerId, new SmtpMailer(
+        $_ENV['MAIL_HOST'] ?? 'mailpit',
+        (int) ($_ENV['MAIL_PORT'] ?? 1025),
+        $_ENV['MAIL_FROM'] ?? 'noreply@oms.local',
+    )),
     'TrackingWorker'     => new TrackingWorker($channel, $redis, $pdo, $workerId, $orderRepo),
 };
 

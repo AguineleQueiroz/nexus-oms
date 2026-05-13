@@ -7,7 +7,9 @@ export function useStats(interval = 5000) {
   const stats = ref<Stats | null>(null)
 
   const refresh = async () => {
-    stats.value = await api.fetchStats()
+    try {
+      stats.value = await api.fetchStats()
+    } catch { /* API unavailable — keep last value */ }
   }
 
   usePolling(refresh, interval)

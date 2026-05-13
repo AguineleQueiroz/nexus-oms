@@ -7,7 +7,9 @@ export function useConsumers(interval = 5000) {
   const consumers = ref<Consumer[]>([])
 
   const refresh = async () => {
-    consumers.value = await api.fetchConsumers()
+    try {
+      consumers.value = await api.fetchConsumers()
+    } catch { /* API unavailable — keep last value */ }
   }
 
   usePolling(refresh, interval)
