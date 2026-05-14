@@ -80,11 +80,38 @@ export interface Queue {
   name: string
   messages: number
   consumers: number
+  message_stats?: {
+    publish?: number
+    publish_details?: { rate: number }
+    deliver_get?: number
+    deliver_get_details?: { rate: number }
+    ack?: number
+    ack_details?: { rate: number }
+  }
 }
 
 export interface OrdersResponse {
   data: Order[]
   meta: { page: number; per_page: number; total: number }
+}
+
+export interface MailNotification {
+  id: string
+  subject: string
+  from: string
+  to: string
+  snippet: string
+  created: string
+  read: boolean
+}
+
+export interface MailNotificationDetail extends MailNotification {
+  text: string
+}
+
+export interface NotificationsResponse {
+  total: number
+  messages: MailNotification[]
 }
 
 export interface OrdersParams {

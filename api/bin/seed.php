@@ -3,25 +3,40 @@
 /**
  * Seeder de pedidos para popular o dashboard com dados realistas.
  *
+ * Modos:
+ *   Histórico (padrão) — insere direto no banco, sem RabbitMQ. Rápido para grandes volumes.
+ *   Live (--live)      — cria via OrderService + RabbitMQ. Workers processam em tempo real.
+ *
  * Uso:
  *   php bin/seed.php
  *   php bin/seed.php --orders=200
- *   php bin/seed.php --clear
  *   php bin/seed.php --orders=100 --clear
+ *   php bin/seed.php --orders=500 --live
+ *   php bin/seed.php --orders=500 --live --clear
+ *
+ * Via docker:
+ *   docker compose exec api php bin/seed.php --orders=100 --live
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use App\Database\Connection;
+use App\Repositories\EventRepository;
+use App\Repositories\OrderRepository;
+use App\Services\EventPublisher;
+use App\Services\OrderService;
 use Dotenv\Dotenv;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
 
-Dotenv::createUnsafeImmutable(__DIR__ . '/..')->safeLoad();
+Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 
 /**
  * CLI args
  */
-$opts        = getopt('', ['orders::', 'clear']);
+$opts        = getopt('', ['orders::', 'clear', 'live']);
 $totalOrders = (int) ($opts['orders'] ?? 50);
 $clear       = isset($opts['clear']);
+$live        = isset($opts['live']);
 
 $pdo = new PDO(
     sprintf(
@@ -199,8 +214,25 @@ function progressBar(int $current, int $total, int $width = 20): string
     return '[' . str_repeat('█', $filled) . str_repeat('░', $width - $filled) . ']';
 }
 
+function formatEta(int $seconds): string
+{
+    if ($seconds < 60)  return "{$seconds}s";
+    if ($seconds < 3600) return floor($seconds / 60) . 'm' . ($seconds % 60) . 's';
+    return floor($seconds / 3600) . 'h' . floor(($seconds % 3600) / 60) . 'm';
+}
 
-echo "\nNexus OMS — Seeder\n";
+function randomItems(array $products): array
+{
+    $items = [];
+    for ($j = 0, $c = mt_rand(1, 4); $j < $c; $j++) {
+        $product = $products[array_rand($products)];
+        $qty     = mt_rand(1, 3);
+        $items[] = ['product' => $product[0], 'qty' => $qty, 'price' => $product[1]];
+    }
+    return $items;
+}
+
+echo "\nNexus OMS — Seeder" . ($live ? ' [LIVE]' : '') . "\n";
 echo str_repeat('─', 40) . "\n";
 
 if ($clear) {
@@ -213,9 +245,86 @@ if ($clear) {
     echo "done\n";
 }
 
+/**
+ * Live mode
+ */
+if ($live) {
+    echo "Conectando ao RabbitMQ... ";
+    try {
+        $amqp    = new AMQPStreamConnection(
+            $_ENV['RABBITMQ_HOST']     ?? 'rabbitmq',
+            (int) ($_ENV['RABBITMQ_PORT']     ?? 5672),
+            $_ENV['RABBITMQ_USER']     ?? 'guest',
+            $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
+        );
+        $channel = $amqp->channel();
+    } catch (\Throwable $e) {
+        echo "ERRO: " . $e->getMessage() . "\n";
+        exit(1);
+    }
+    echo "ok\n";
+
+    $publisher    = new EventPublisher($channel);
+    $publisher->setupExchangesAndQueues();
+
+    $orderRepo    = new OrderRepository(Connection::getInstance());
+    $eventRepo    = new EventRepository(Connection::getInstance());
+    $orderService = new OrderService($orderRepo, $eventRepo, $publisher);
+
+    echo "Criando {$totalOrders} pedidos via RabbitMQ...\n";
+    echo "(Workers processarão em segundo plano)\n\n";
+
+    $created = 0;
+    $failed  = 0;
+    $start   = microtime(true);
+
+    for ($i = 0; $i < $totalOrders; $i++) {
+        $customer = $customers[array_rand($customers)];
+        $items    = randomItems($products);
+        $total    = array_sum(array_map(fn($it) => $it['price'] * $it['qty'], $items));
+
+        try {
+            $orderService->createOrder([
+                'customer_name'   => $customer[0],
+                'customer_email'  => $customer[1],
+                'items'           => $items,
+                'total'           => $total,
+                'idempotency_key' => 'live-' . uuid(),
+            ]);
+            $created++;
+        } catch (\Throwable) {
+            $failed++;
+        }
+
+        $elapsed = microtime(true) - $start;
+        $done    = $i + 1;
+        $rate    = $done / max($elapsed, 0.001);
+        $etaSec  = (int) (($totalOrders - $done) / max($rate, 0.001));
+        echo "\r  " . progressBar($done, $totalOrders) . " {$done}/{$totalOrders}  | " . number_format($rate, 1) . " ord/s | ETA " . formatEta($etaSec) . "   ";
+    }
+
+    $elapsed = microtime(true) - $start;
+
+    echo "\n\n";
+    echo "  Pedidos criados:  {$created}\n";
+    if ($failed > 0) {
+        echo "  Falhas:           {$failed}\n";
+    }
+    echo "  Tempo total:      " . number_format($elapsed, 1) . "s\n";
+    echo "  Taxa média:       " . number_format($created / max($elapsed, 0.001), 1) . " ord/s\n";
+    echo "\nDone ✓\n\n";
+
+    $channel->close();
+    $amqp->close();
+    exit(0);
+}
+
+
+/**
+ * Historical mode (default)
+ */
 $statusList = [];
 $remaining  = $totalOrders;
-$statuses   = array_keys($statusDistribution);
 
 foreach ($statusDistribution as $status => $pct) {
     $count = (int) round($totalOrders * $pct / 100);
@@ -225,9 +334,6 @@ foreach ($statusDistribution as $status => $pct) {
     }
 }
 
-/**
- * orders remaining marked as 'delivered'
- */
 while ($remaining > 0) {
     $statusList[] = 'delivered';
     $remaining--;
@@ -235,7 +341,7 @@ while ($remaining > 0) {
 
 shuffle($statusList);
 
-echo "Seeding {$totalOrders} orders...\n";
+echo "Seeding {$totalOrders} orders (histórico)...\n";
 
 $insertOrder = $pdo->prepare('
     INSERT INTO orders (id, customer_name, customer_email, items, total, status, idempotency_key, metadata, created_at, updated_at)
@@ -254,16 +360,8 @@ foreach ($statusList as $i => $finalStatus) {
     $customer  = $customers[array_rand($customers)];
     $orderId   = uuid();
     $createdAt = randomTimestamp(48);
-
-    $itemCount = mt_rand(1, 4);
-    $items     = [];
-    $total     = 0;
-    for ($j = 0; $j < $itemCount; $j++) {
-        $product = $products[array_rand($products)];
-        $qty     = mt_rand(1, 3);
-        $items[] = ['product' => $product[0], 'qty' => $qty, 'price' => $product[1]];
-        $total  += $product[1] * $qty;
-    }
+    $items     = randomItems($products);
+    $total     = array_sum(array_map(fn($it) => $it['price'] * $it['qty'], $items));
 
     $metadata = [];
     if ($finalStatus === 'shipped' || $finalStatus === 'delivered') {
@@ -287,10 +385,10 @@ foreach ($statusList as $i => $finalStatus) {
     $stepDelay = 0;
 
     foreach ($chain as $eventType) {
-        $stepDelay    += mt_rand(2, 120); // 2s–2min entre eventos
-        $publishedAt   = progressTimestamp($createdAt, $stepDelay);
-        $processedAt   = progressTimestamp($publishedAt, mt_rand(1, 10));
-        $workerId      = match (true) {
+        $stepDelay  += mt_rand(2, 120);
+        $publishedAt = progressTimestamp($createdAt, $stepDelay);
+        $processedAt = progressTimestamp($publishedAt, mt_rand(1, 10));
+        $workerId    = match (true) {
             str_contains($eventType, 'payment')  => 'payment-worker-1',
             $eventType === 'order.picking'        => 'fulfillment-worker-1',
             $eventType === 'order.shipped'        => 'tracking-worker-1',
@@ -318,7 +416,7 @@ foreach ($statusList as $i => $finalStatus) {
         $totalEvents++;
     }
 
-    $snapshot = [
+    $redis->set("order:snapshot:{$orderId}", json_encode([
         'id'             => $orderId,
         'customer_name'  => $customer[0],
         'customer_email' => $customer[1],
@@ -327,13 +425,11 @@ foreach ($statusList as $i => $finalStatus) {
         'items'          => $items,
         'metadata'       => $metadata,
         'created_at'     => $createdAt,
-    ];
-    $redis->set("order:snapshot:{$orderId}", json_encode($snapshot));
+    ]));
 
     $summary[$finalStatus] = ($summary[$finalStatus] ?? 0) + 1;
 
-    $bar = progressBar($i + 1, $totalOrders);
-    echo "\r  {$bar} " . ($i + 1) . "/{$totalOrders}  ";
+    echo "\r  " . progressBar($i + 1, $totalOrders) . " " . ($i + 1) . "/{$totalOrders}  ";
 }
 
 echo "\n\n";
@@ -341,16 +437,15 @@ echo "\n\n";
 $heartbeatInterval = (int) ($_ENV['HEARTBEAT_INTERVAL'] ?? 5);
 foreach ($workers as $workerType => $queue) {
     $workerId = strtolower(preg_replace('/Worker$/', '', $workerType)) . '-worker-1';
-    $ttl      = $heartbeatInterval * 3;
-    $redis->setex("worker:heartbeat:{$workerId}", $ttl * 60, json_encode([
+    $redis->setex("worker:heartbeat:{$workerId}", $heartbeatInterval * 3 * 60, json_encode([
         'worker_id'        => $workerId,
         'worker_type'      => $workerType,
         'queue_name'       => $queue,
         'status'           => 'active',
-        'last_heartbeat'   => date('Y-m-d H:i:s'),
+        'last_heartbeat'   => date('c'),
         'events_processed' => mt_rand(50, 500),
         'events_failed'    => mt_rand(0, 10),
-        'started_at'       => date('Y-m-d H:i:s', strtotime('-1 hour')),
+        'started_at'       => date('c', strtotime('-1 hour')),
     ]));
 }
 

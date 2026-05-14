@@ -13,3 +13,4 @@ $router->get('/api/dashboard/consumers',      fn($req, $p) => $dashboardControll
 $router->get('/api/dashboard/events/feed',    fn($req, $p) => $dashboardController->eventFeed($req));
 $router->get('/api/dashboard/events/by-type', fn($req, $p) => $dashboardController->eventsByType($req));
 $router->get('/api/dashboard/queues',         fn($req, $p) => $dashboardController->queues($req));
+$router->get('/api/dashboard/notifications',  fn($req, $p) => $dashboardController->notifications($req));

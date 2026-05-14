@@ -51,8 +51,24 @@ services:
     volumes:
       - ./api:/app
       - api_vendor:/app/vendor
-    deploy:
-      replicas: 2
+
+  worker-notification-2:
+    build: ./api
+    command: php bin/run-worker.php
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: ./api/.env
+    environment:
+      WORKER_TYPE: NotificationWorker
+      WORKER_ID: notification-worker-2
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
 
   worker-fulfillment:
     build: ./api

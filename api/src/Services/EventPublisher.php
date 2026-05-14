@@ -66,7 +66,7 @@ class EventPublisher
     private function bindQueues(): void
     {
         $bindings = [
-            ['orders.audit',        'order.*'],
+            ['orders.audit',        'order.#'],
             ['orders.payment',      'order.payment.*'],
             ['orders.notification', 'order.created'],
             ['orders.notification', 'order.payment.*'],
@@ -77,7 +77,7 @@ class EventPublisher
             ['orders.inventory',    'order.picking'],
             ['orders.inventory',    'order.cancelled'],
             ['orders.tracking',     'order.shipped'],
-            ['orders.fulfillment',  'order.picking'],
+            ['orders.fulfillment',  'order.payment.approved'],
         ];
 
         foreach ($bindings as [$queue, $routingKey]) {

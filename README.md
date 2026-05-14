@@ -1,6 +1,17 @@
 # Nexus OMS
 
 Sistema de gerenciamento de pedidos orientado a eventos. Cada transição de estado gera um evento publicado no RabbitMQ, consumido por workers especializados. O dashboard oferece visualização em tempo real do ciclo de vida dos pedidos, fluxo de eventos e saúde dos consumers.
+O objetivo foi construir uma aplicação onde todos os conceitos de **mensageria com RabbitMQ** pudessem ser observados na prática — topic exchange, filas, bindings, dead letter queue, retry com backoff, workers concorrentes — tudo centralizado e visível num único lugar.
+
+### Escolhas técnicas
+
+**RabbitMQ** é o núcleo do projeto. Cada transição de estado de um pedido vira um evento publicado em um *topic exchange*, roteado para filas especializadas e consumido por workers independentes. O objetivo foi entender esse fluxo na prática, não apenas na teoria.
+
+**Docker** mantém todos os serviços isolados — broker, banco, cache, SMTP, workers e frontend — sem dependência de ambiente local. Um único `docker compose up` sobe tudo pronto para uso.
+
+**PHP puro (sem framework)** foi uma escolha deliberada para fortalecer o conhecimento na raiz da linguagem. A complexidade de um framework não agregaria valor num projeto cujo foco é a camada de mensageria, e implementar o pipeline HTTP, roteamento e injeção de dependências manualmente reforça o entendimento do que frameworks abstraem.
+
+**Vue 3 + TypeScript** entrega um dashboard reativo e fluido com polling em tempo real. D3.js para os gráficos, composables para separar lógica de dados da camada de apresentação.
 
 > Projeto de estudo — foco em **Event-Driven Architecture**, **Topic Exchange**, **CQRS simplificado**, **Saga Pattern** e **Dead Letter Queue**.
 
@@ -198,15 +209,21 @@ curl http://localhost:8000/
 
 ### 3. Popular o dashboard com dados de exemplo
 
+**A flag Live (`--live`)** — cria pedidos via `OrderService` com publicação real no RabbitMQ. Os workers processam as mensagens em segundo plano, os contadores do dashboard sobem em tempo real e os emails chegam no Mailpit.
+
 ```bash
-docker compose exec api php bin/seed.php --orders=100 --clear
+# Live (via RabbitMQ — workers processam em tempo real)
+docker compose exec api php bin/seed.php --orders=500 --live
+docker compose exec api php bin/seed.php --orders=1000 --live --clear
 ```
 
-Opções do seeder:
+> **`--clear` vs sem `--clear`:** com `--clear`, o banco é truncado antes de inserir — você parte do zero com exatamente N pedidos. Sem `--clear`, os novos pedidos são somados ao que já existe no banco.
+
+Todas as flags disponíveis:
 
 | Flag | Descrição |
 |---|---|
-| `--orders=N` | Quantidade de pedidos a criar (padrão: 50) |
+| `--live` | Publica via RabbitMQ; workers processam em tempo real |
 | `--clear` | Limpa `orders`, `order_events` e Redis antes de semear |
 
 ### 4. Abrir o dashboard

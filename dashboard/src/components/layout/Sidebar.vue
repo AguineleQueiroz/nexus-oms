@@ -42,6 +42,14 @@
         </svg>
         <span class="nav-label">Eventos</span>
       </router-link>
+
+      <router-link to="/notifications" class="nav-item" active-class="active">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="3" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M2 5l6 4 6-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="nav-label">Notificações</span>
+      </router-link>
     </nav>
 
     <div class="sidebar-footer">

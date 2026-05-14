@@ -17,6 +17,7 @@ use App\Repositories\OrderRepository;
 use App\Repositories\ReadModelRepository;
 use App\Services\EventPublisher;
 use App\Services\HeartbeatService;
+use App\Services\MailpitService;
 use App\Services\OrderService;
 use App\Services\RabbitMqManagement;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
@@ -42,7 +43,10 @@ $pipeline = new Pipeline(
             $_ENV['RABBITMQ_USER'] ?? 'guest',
             $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
         );
-        $dashboardController = new DashboardController($readModel, $heartbeat, $rabbitMq);
+        $mailpit    = new MailpitService(
+            $_ENV['MAILPIT_URL'] ?? 'http://mailpit:8025',
+        );
+        $dashboardController = new DashboardController($readModel, $heartbeat, $rabbitMq, $mailpit);
 
         $router = new Router();
         $router->get('/', fn($r, $p) => Response::json(['status' => 'ok']));

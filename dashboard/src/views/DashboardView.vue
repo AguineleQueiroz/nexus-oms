@@ -39,6 +39,13 @@
             <h2 class="panel-title">Throughput — últimos 60 min</h2>
             <ThroughputChart :data="throughput" />
           </div>
+          <div class="panel">
+            <div class="queue-panel-header">
+              <h2 class="panel-title">Filas RabbitMQ</h2>
+              <span class="queue-count">{{ queues.length }} filas</span>
+            </div>
+            <QueueStatusPanel :queues="queues" />
+          </div>
         </div>
         <div class="feed-col">
           <div class="panel panel-feed">
@@ -62,12 +69,13 @@ import StatsBar from '@/components/StatsBar.vue'
 import WorkersMini from '@/components/consumers/WorkersMini.vue'
 import FunnelChart from '@/components/charts/FunnelChart.vue'
 import ThroughputChart from '@/components/charts/ThroughputChart.vue'
+import QueueStatusPanel from '@/components/charts/QueueStatusPanel.vue'
 import EventFeed from '@/components/EventFeed.vue'
 import { useStats } from '@/composables/useStats'
 import { useEventFeed } from '@/composables/useEventFeed'
 import { useConsumers } from '@/composables/useConsumers'
 import { api } from '@/services/api'
-import type { ThroughputPoint, FunnelItem } from '@/types'
+import type { ThroughputPoint, FunnelItem, Queue } from '@/types'
 
 const { stats }     = useStats(5000)
 const { events }    = useEventFeed(2000)
@@ -75,6 +83,7 @@ const { consumers } = useConsumers(5000)
 
 const throughput = ref<ThroughputPoint[]>([])
 const funnel     = ref<FunnelItem[]>([])
+const queues     = ref<Queue[]>([])
 const lastUpdate = ref(Date.now())
 
 const lastUpdatedLabel = computed(() => {
@@ -85,12 +94,14 @@ const lastUpdatedLabel = computed(() => {
 })
 
 async function loadCharts() {
-  const [t, f] = await Promise.all([
+  const [t, f, q] = await Promise.all([
     api.fetchThroughput().catch(() => [] as ThroughputPoint[]),
-    api.fetchFunnel().catch(() => [] as FunnelItem[]),
+    api.fetchFunnel().catch(()   => [] as FunnelItem[]),
+    api.fetchQueues().catch(()   => [] as Queue[]),
   ])
   throughput.value = t
   funnel.value     = f
+  queues.value     = q
   lastUpdate.value = Date.now()
 }
 
@@ -221,5 +232,18 @@ onUnmounted(() => clearInterval(chartTimer))
 .feed-scroll {
   flex: 1;
   overflow-y: auto;
+}
+
+.queue-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.queue-panel-header .panel-title { margin-bottom: 0; }
+.queue-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
 }
 </style>

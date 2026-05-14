@@ -24,6 +24,18 @@ abstract class BaseWorker
         protected readonly string      $workerId,
     ) {
         $this->startedAt = (new \DateTimeImmutable())->format('c');
+        $this->loadCountersFromRedis();
+    }
+
+    private function loadCountersFromRedis(): void
+    {
+        $data = $this->redis->get("worker:heartbeat:{$this->workerId}");
+        if ($data === false) {
+            return;
+        }
+        $blob = json_decode($data, true);
+        $this->eventsProcessed = (int) ($blob['events_processed'] ?? 0);
+        $this->eventsFailed    = (int) ($blob['events_failed'] ?? 0);
     }
 
     public function setWorkerInfo(string $workerType, string $queueName): void

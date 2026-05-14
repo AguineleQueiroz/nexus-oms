@@ -1,6 +1,7 @@
 import type {
   Stats, FunnelItem, ThroughputPoint, Consumer,
   OrderEvent, EventTypeCount, Queue,
+  MailNotificationDetail, NotificationsResponse,
   OrdersResponse, OrderDetail, OrdersParams,
 } from '@/types'
 
@@ -25,7 +26,9 @@ export const api = {
   fetchConsumers:   ()              => get<Consumer[]>('/api/dashboard/consumers'),
   fetchEventFeed:   (limit = 50)    => get<OrderEvent[]>(`/api/dashboard/events/feed?limit=${limit}`),
   fetchEventsByType:()              => get<EventTypeCount[]>('/api/dashboard/events/by-type'),
-  fetchQueues:      ()              => get<Queue[]>('/api/dashboard/queues'),
+  fetchQueues:          ()              => get<Queue[]>('/api/dashboard/queues'),
+  fetchNotifications:   (limit = 50)    => get<NotificationsResponse>(`/api/dashboard/notifications?limit=${limit}`),
+  fetchNotification:    (id: string)    => get<MailNotificationDetail>(`/api/dashboard/notifications?id=${encodeURIComponent(id)}`),
   fetchOrders:      (p: OrdersParams) => {
     const q = new URLSearchParams()
     if (p.status)   q.set('status',   String(p.status))
