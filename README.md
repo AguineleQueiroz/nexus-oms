@@ -16,128 +16,18 @@ O objetivo foi construir uma aplicação onde todos os conceitos de **mensageria
 > Projeto de estudo — foco em **Event-Driven Architecture**, **Topic Exchange**, **CQRS simplificado**, **Saga Pattern** e **Dead Letter Queue**.
 
 ---
+## Telas
+
+<img width="1898" height="937" alt="nexus-1" src="https://github.com/user-attachments/assets/a5605a7a-e833-44f9-801a-a3855b6fa695" />
+<img width="1915" height="942" alt="nexus-orders" src="https://github.com/user-attachments/assets/1f1cd930-b2d8-4fa1-ba7e-0db9782ef22e" />
+<img width="1912" height="939" alt="nexus-notifications-details" src="https://github.com/user-attachments/assets/4eb66810-3085-4848-a9d3-0988de40a215" />
 
 ## Diagrama de Serviços
-
-<div align="center">
-
-<!--
-  Diagrama de arquitetura do Nexus OMS
-  Renderizado como HTML inline para visualização no GitHub
--->
-
-<table>
-  <thead>
-    <tr>
-      <th colspan="5" align="center">
-        <strong>Nexus OMS — Arquitetura de Serviços</strong>
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center" colspan="5">
-        <br>
-        <strong>[ Cliente / Browser ]</strong><br>
-        <code>:5173</code>
-        <br><br>
-        ↕ HTTP polling (2–5s)
-        <br><br>
-      </td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="20%">
-        <strong>Dashboard</strong><br>
-        <sub>Vue 3 + D3.js</sub><br>
-        <code>:5173</code>
-      </td>
-      <td align="center" valign="middle">→→→</td>
-      <td align="center" valign="top" width="20%">
-        <strong>API PHP</strong><br>
-        <sub>PHP 8.2 puro</sub><br>
-        <code>:8000</code>
-      </td>
-      <td align="center" valign="middle">→→→</td>
-      <td align="center" valign="top" width="20%">
-        <strong>PostgreSQL</strong><br>
-        <sub>Banco principal</sub><br>
-        <code>:5432</code>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="5" align="center"><br>↕ Publica eventos<br><br></td>
-    </tr>
-    <tr>
-      <td colspan="5" align="center">
-        <strong>RabbitMQ — Exchange <code>orders</code> (topic)</strong><br>
-        <code>:5672</code> &nbsp;|&nbsp; Management <code>:15672</code>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="5" align="center"><br>↕ Consome filas<br><br></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top">
-        <strong>PaymentWorker</strong><br>
-        <sub><code>orders.payment</code></sub><br>
-        <sub>70% aprovação</sub>
-      </td>
-      <td align="center" valign="top">
-        <strong>AuditWorker</strong><br>
-        <sub><code>orders.audit</code></sub><br>
-        <sub>Event sourcing</sub>
-      </td>
-      <td align="center" valign="top">
-        <strong>NotificationWorker</strong><br>
-        <sub><code>orders.notification</code></sub><br>
-        <sub>Email via SMTP</sub>
-      </td>
-      <td align="center" valign="top">
-        <strong>FulfillmentWorker</strong><br>
-        <sub><code>orders.fulfillment</code></sub><br>
-        <sub>Separação</sub>
-      </td>
-      <td align="center" valign="top">
-        <strong>Inventory / Tracking</strong><br>
-        <sub><code>orders.inventory</code></sub><br>
-        <sub><code>orders.tracking</code></sub>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="5" align="center"><br>↕ Heartbeat &amp; snapshots<br><br></td>
-    </tr>
-    <tr>
-      <td align="center" colspan="2" valign="top">
-        <strong>Redis</strong><br>
-        <sub>Read model + Heartbeat</sub><br>
-        <code>:6379</code>
-      </td>
-      <td align="center" colspan="3" valign="top">
-        <strong>Mailpit</strong><br>
-        <sub>SMTP local + UI</sub><br>
-        <code>:1025</code> &nbsp;|&nbsp; UI <code>:8025</code>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
-
----
+<img width="1774" height="887" alt="nexus" src="https://github.com/user-attachments/assets/5a9aabe9-3a68-4376-8634-9eb11067438c" />
 
 ## Ciclo de Vida do Pedido
 
-```
-criado
-  └─► pagamento_pendente
-          ├─► [recusado] ──► pagamento_recusado ──► (fim)
-          └─► pago
-                └─► separando
-                      └─► enviado
-                            └─► entregue
-
-[qualquer estado antes de enviado] ──► cancelado
-```
+<img width="1693" height="929" alt="nexux-life-cycle" src="https://github.com/user-attachments/assets/c4e6306a-2b24-4bc7-a502-33079899f5f0" />
 
 Cada transição publica **exatamente um evento** no RabbitMQ.
 
