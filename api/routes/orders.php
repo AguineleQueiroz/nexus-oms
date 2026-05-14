@@ -1,7 +1,10 @@
 <?php
 
-/** @var \App\Http\Router $router */
-/** @var \App\Controllers\OrderController $orderController */
+use App\Controllers\OrderController;
+use App\Http\Router;
+
+/** @var Router $router */
+/** @var OrderController $orderController */
 
 $router->get('/api/orders', fn($req, $p) => $orderController->index($req));
 $router->post('/api/orders', fn($req, $p) => $orderController->create($req));

@@ -1,7 +1,10 @@
 <?php
 
-/** @var \App\Http\Router $router */
-/** @var \App\Controllers\DashboardController $dashboardController */
+use App\Controllers\DashboardController;
+use App\Http\Router;
+
+/** @var Router $router */
+/** @var DashboardController $dashboardController */
 
 $router->get('/api/dashboard/stats',          fn($req, $p) => $dashboardController->stats($req));
 $router->get('/api/dashboard/throughput',     fn($req, $p) => $dashboardController->throughput($req));
