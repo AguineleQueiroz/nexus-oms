@@ -32,6 +32,7 @@ function makeNotifWorker(MailerInterface $mailer): NotificationWorker
 {
     $channel = Mockery::mock(AMQPChannel::class);
     $redis   = Mockery::mock(Redis::class);
+    $redis->shouldReceive('get')->andReturn(false)->byDefault();
     $redis->shouldReceive('setex')->byDefault();
 
     $pdo    = Mockery::mock(PDO::class);

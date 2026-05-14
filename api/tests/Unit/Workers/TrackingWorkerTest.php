@@ -35,6 +35,7 @@ it('order.shipped generates a BR tracking code and updates order metadata', func
 
     $channel = Mockery::mock(AMQPChannel::class);
     $redis   = Mockery::mock(Redis::class);
+    $redis->shouldReceive('get')->andReturn(false)->byDefault();
     $redis->shouldReceive('setex')->byDefault();
 
     $pdo    = Mockery::mock(PDO::class);

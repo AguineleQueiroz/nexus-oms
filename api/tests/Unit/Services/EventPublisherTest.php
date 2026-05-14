@@ -106,13 +106,13 @@ it('setupExchangesAndQueues declares all 8 queues', function () {
     (new EventPublisher($channel))->setupExchangesAndQueues();
 });
 
-it('setupExchangesAndQueues binds orders.audit with wildcard order.*', function () {
+it('setupExchangesAndQueues binds orders.audit with wildcard order.#', function () {
     /** @var AMQPChannel&MockInterface $channel */
     $channel = Mockery::mock(AMQPChannel::class);
     $channel->shouldReceive('exchange_declare')->once();
     $channel->shouldReceive('queue_declare')->times(8);
     $channel->shouldReceive('queue_bind')
-        ->withArgs(fn (string $q, string $ex, string $rk) => $q === 'orders.audit' && $rk === 'order.*')
+        ->withArgs(fn (string $q, string $ex, string $rk) => $q === 'orders.audit' && $rk === 'order.#')
         ->once();
     $channel->shouldReceive('queue_bind')->zeroOrMoreTimes();
 

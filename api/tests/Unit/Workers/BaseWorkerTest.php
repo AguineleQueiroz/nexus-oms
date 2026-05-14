@@ -64,6 +64,7 @@ function mockPdo(bool $alreadyProcessed = false): PDO
 function makeWorker(AMQPChannel $channel, PDO $pdo): ConcreteWorker
 {
     $redis = Mockery::mock(Redis::class);
+    $redis->shouldReceive('get')->andReturn(false)->byDefault();
     $redis->shouldReceive('setex')->byDefault();
     return new ConcreteWorker($channel, $redis, $pdo, 'test-worker-1');
 }
@@ -150,6 +151,7 @@ it('sendHeartbeat sets Redis key worker:heartbeat:{id} with TTL = HEARTBEAT_INTE
 
     $channel = Mockery::mock(AMQPChannel::class);
     $redis   = Mockery::mock(Redis::class);
+    $redis->shouldReceive('get')->andReturn(false)->once();
     $redis->shouldReceive('setex')
         ->once()
         ->withArgs(function (string $key, int $ttl) {
