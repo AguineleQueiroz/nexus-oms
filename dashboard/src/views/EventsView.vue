@@ -1,6 +1,5 @@
 <template>
-  <AppLayout>
-    <div class="events-view">
+  <div class="events-view">
       <div class="view-header">
         <h1 class="page-title">Eventos</h1>
         <select
@@ -79,12 +78,10 @@
         :event-type="selectedEventType"
       />
     </div>
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import PayloadModal from '@/components/PayloadModal.vue'
 import EventFlowChart from '@/components/charts/EventFlowChart.vue'
 import { api } from '@/services/api'

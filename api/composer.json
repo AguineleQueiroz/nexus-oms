@@ -6,7 +6,8 @@
         "php": ">=8.2",
         "php-amqplib/php-amqplib": "^3.0",
         "vlucas/phpdotenv": "^5.0",
-        "ext-pdo": "*"
+        "ext-pdo": "*",
+      "ext-redis": "*"
     },
     "require-dev": {
         "pestphp/pest": "^2.0",

@@ -16,13 +16,12 @@ use Dotenv\Dotenv;
 
 Dotenv::createUnsafeImmutable(__DIR__ . '/..')->safeLoad();
 
-// ─── CLI args ────────────────────────────────────────────────────────────────
-
+/**
+ * CLI args
+ */
 $opts        = getopt('', ['orders::', 'clear']);
 $totalOrders = (int) ($opts['orders'] ?? 50);
 $clear       = isset($opts['clear']);
-
-// ─── Conexões ────────────────────────────────────────────────────────────────
 
 $pdo = new PDO(
     sprintf(
@@ -39,8 +38,9 @@ $pdo = new PDO(
 $redis = new Redis();
 $redis->connect($_ENV['REDIS_HOST'] ?? 'localhost', (int) ($_ENV['REDIS_PORT'] ?? 6379));
 
-// ─── Dados fictícios ─────────────────────────────────────────────────────────
-
+/**
+ * Fake data
+ */
 $customers = [
     ['João Silva',      'joao.silva@exemplo.com'],
     ['Maria Oliveira',  'maria.oliveira@exemplo.com'],
@@ -82,7 +82,10 @@ $products = [
     ['Cadeira de Escritório',   89990],
 ];
 
-// Distribuição de status: ~funil de conversão realista
+
+/**
+ * conversion funil
+ */
 $statusDistribution = [
     'delivered'       => 40,
     'shipped'         => 20,
@@ -93,7 +96,10 @@ $statusDistribution = [
     'payment_refused' => 5,
 ];
 
-// Chain de eventos por status final
+
+/**
+ * group by final status
+ */
 $eventChains = [
     'payment_pending' => [
         'order.created',
@@ -147,8 +153,10 @@ $workers = [
     'TrackingWorker'     => 'orders.tracking',
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * helpers
+ */
 function uuid(): string
 {
     return sprintf(
@@ -163,11 +171,15 @@ function uuid(): string
 
 function randomTimestamp(int $hoursBack = 48): string
 {
-    // Clustering em horários de pico: 9–12h e 14–18h
+    /**
+     * Grouping during peak hours: 9am–12pm and 2pm–6pm
+     */
     $now  = time();
     $base = $now - mt_rand(0, $hoursBack * 3600);
 
-    // 60% de chance de cair em horário de pico
+    /**
+     * 60% chance of it crashing during peak hours.
+     */
     if (mt_rand(1, 10) <= 6) {
         $hour = mt_rand(0, 1) === 0 ? mt_rand(9, 11) : mt_rand(14, 17);
         $base = mktime($hour, mt_rand(0, 59), mt_rand(0, 59), (int) date('n', $base), (int) date('j', $base), (int) date('Y', $base));
@@ -187,7 +199,6 @@ function progressBar(int $current, int $total, int $width = 20): string
     return '[' . str_repeat('█', $filled) . str_repeat('░', $width - $filled) . ']';
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 echo "\nNexus OMS — Seeder\n";
 echo str_repeat('─', 40) . "\n";
@@ -202,7 +213,6 @@ if ($clear) {
     echo "done\n";
 }
 
-// Monta a lista de status na quantidade correta
 $statusList = [];
 $remaining  = $totalOrders;
 $statuses   = array_keys($statusDistribution);
@@ -215,7 +225,9 @@ foreach ($statusDistribution as $status => $pct) {
     }
 }
 
-// Preenche eventuais pedidos restantes com 'delivered'
+/**
+ * orders remaining marked as 'delivered'
+ */
 while ($remaining > 0) {
     $statusList[] = 'delivered';
     $remaining--;
@@ -243,7 +255,6 @@ foreach ($statusList as $i => $finalStatus) {
     $orderId   = uuid();
     $createdAt = randomTimestamp(48);
 
-    // Gera entre 1 e 4 itens aleatórios
     $itemCount = mt_rand(1, 4);
     $items     = [];
     $total     = 0;
@@ -272,7 +283,6 @@ foreach ($statusList as $i => $finalStatus) {
         ':updated_at'      => $createdAt,
     ]);
 
-    // Insere os eventos da chain para o status final
     $chain     = $eventChains[$finalStatus] ?? ['order.created'];
     $stepDelay = 0;
 
@@ -308,7 +318,6 @@ foreach ($statusList as $i => $finalStatus) {
         $totalEvents++;
     }
 
-    // Atualiza snapshot no Redis
     $snapshot = [
         'id'             => $orderId,
         'customer_name'  => $customer[0],
@@ -323,14 +332,12 @@ foreach ($statusList as $i => $finalStatus) {
 
     $summary[$finalStatus] = ($summary[$finalStatus] ?? 0) + 1;
 
-    // Progress bar
     $bar = progressBar($i + 1, $totalOrders);
     echo "\r  {$bar} " . ($i + 1) . "/{$totalOrders}  ";
 }
 
 echo "\n\n";
 
-// Registra heartbeats dos workers no Redis
 $heartbeatInterval = (int) ($_ENV['HEARTBEAT_INTERVAL'] ?? 5);
 foreach ($workers as $workerType => $queue) {
     $workerId = strtolower(preg_replace('/Worker$/', '', $workerType)) . '-worker-1';
@@ -347,7 +354,6 @@ foreach ($workers as $workerType => $queue) {
     ]));
 }
 
-// Resumo
 echo "Summary:\n";
 $maxLen = max(array_map('strlen', array_keys($summary)));
 arsort($summary);

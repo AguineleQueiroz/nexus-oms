@@ -11,12 +11,26 @@ abstract class BaseWorker
     private const RETRY_QUEUE = 'orders.retry';
     private const DEAD_QUEUE  = 'orders.dead';
 
+    private string $workerType  = '';
+    private string $queueName   = '';
+    private int    $eventsProcessed = 0;
+    private int    $eventsFailed    = 0;
+    private string $startedAt;
+
     public function __construct(
         protected readonly AMQPChannel $channel,
         protected readonly \Redis      $redis,
         protected readonly \PDO        $pdo,
         protected readonly string      $workerId,
-    ) {}
+    ) {
+        $this->startedAt = (new \DateTimeImmutable())->format('c');
+    }
+
+    public function setWorkerInfo(string $workerType, string $queueName): void
+    {
+        $this->workerType = $workerType;
+        $this->queueName  = $queueName;
+    }
 
     abstract protected function handle(array $event): void;
 
@@ -35,8 +49,10 @@ abstract class BaseWorker
         try {
             $this->handle($event);
             $this->markProcessed($eventId);
+            $this->eventsProcessed++;
             $msg->ack();
         } catch (\Throwable $e) {
+            $this->eventsFailed++;
             $this->handleFailure($msg, $retryCount + 1);
         }
     }
@@ -48,8 +64,14 @@ abstract class BaseWorker
             "worker:heartbeat:{$this->workerId}",
             $interval * 3,
             json_encode([
-                'worker_id'  => $this->workerId,
-                'timestamp'  => (new \DateTimeImmutable())->format('c'),
+                'worker_id'        => $this->workerId,
+                'worker_type'      => $this->workerType,
+                'queue_name'       => $this->queueName,
+                'status'           => 'active',
+                'last_heartbeat'   => (new \DateTimeImmutable())->format('c'),
+                'events_processed' => $this->eventsProcessed,
+                'events_failed'    => $this->eventsFailed,
+                'started_at'       => $this->startedAt,
             ])
         );
     }

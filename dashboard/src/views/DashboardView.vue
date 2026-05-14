@@ -1,6 +1,5 @@
 <template>
-  <AppLayout>
-    <div class="dashboard-view">
+  <div class="dashboard-view">
 
       <!-- Header -->
       <div class="dash-header">
@@ -55,12 +54,10 @@
       </div>
 
     </div>
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import StatsBar from '@/components/StatsBar.vue'
 import WorkersMini from '@/components/consumers/WorkersMini.vue'
 import FunnelChart from '@/components/charts/FunnelChart.vue'

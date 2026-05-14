@@ -1,5 +1,6 @@
 <template>
   <div class="funnel-chart" ref="container">
+    <div v-if="data.length === 0" class="funnel-empty">Sem dados de pedidos</div>
     <div
       v-for="item in data"
       :key="item.status"
@@ -30,6 +31,7 @@ const container = ref<HTMLElement | null>(null)
 const maxCount = computed(() => Math.max(...props.data.map(d => d.count), 1))
 
 function barWidth(count: number): string {
+  if (count === 0) return '4px'
   return `${Math.round((count / maxCount.value) * 100)}%`
 }
 
@@ -93,7 +95,13 @@ watch(() => props.data, () => nextTick(animateBars), { deep: true })
   height: 100%;
   background: var(--color-amber, #f59e0b);
   border-radius: 99px;
-  min-width: 2px;
+}
+
+.funnel-empty {
+  color: var(--color-text-muted, #707070);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 0;
 }
 .funnel-count {
   font-size: 12px;

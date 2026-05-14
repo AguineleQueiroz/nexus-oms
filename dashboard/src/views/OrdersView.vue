@@ -1,6 +1,5 @@
 <template>
-  <AppLayout>
-    <div class="orders-view">
+  <div class="orders-view">
       <h1 class="page-title">Pedidos</h1>
       <div class="table-container">
         <table class="order-table">
@@ -54,12 +53,10 @@
         <button :disabled="meta.page * meta.per_page >= meta.total" @click="filters.page = meta.page + 1">→</button>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import { useOrders } from '@/composables/useOrders'
 
 const router = useRouter()

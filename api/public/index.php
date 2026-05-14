@@ -32,20 +32,8 @@ $pipeline = new Pipeline(
         $redis = new Redis();
         $redis->connect($_ENV['REDIS_HOST'] ?? 'redis', (int) ($_ENV['REDIS_PORT'] ?? 6379));
 
-        $amqp    = new AMQPStreamConnection(
-            $_ENV['RABBITMQ_HOST'] ?? 'rabbitmq',
-            (int) ($_ENV['RABBITMQ_PORT'] ?? 5672),
-            $_ENV['RABBITMQ_USER'] ?? 'guest',
-            $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
-        );
-        $channel = $amqp->channel();
-
-        $orderRepo    = new OrderRepository($pdo);
-        $eventRepo    = new EventRepository($pdo);
-        $publisher    = new EventPublisher($channel);
-        $orderService = new OrderService($orderRepo, $eventRepo, $publisher);
-
-        $orderController = new OrderController($orderService, $orderRepo, $eventRepo);
+        $orderRepo = new OrderRepository($pdo);
+        $eventRepo = new EventRepository($pdo);
 
         $readModel  = new ReadModelRepository($redis, $pdo);
         $heartbeat  = new HeartbeatService($redis);
@@ -59,8 +47,28 @@ $pipeline = new Pipeline(
         $router = new Router();
         $router->get('/', fn($r, $p) => Response::json(['status' => 'ok']));
 
-        require __DIR__ . '/../routes/orders.php';
         require __DIR__ . '/../routes/dashboard.php';
+
+        /**
+         * Order routes require AMQP — connect only if necessary.
+         */
+        try {
+            $amqp    = new AMQPStreamConnection(
+                $_ENV['RABBITMQ_HOST'] ?? 'rabbitmq',
+                (int) ($_ENV['RABBITMQ_PORT'] ?? 5672),
+                $_ENV['RABBITMQ_USER'] ?? 'guest',
+                $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
+            );
+            $channel      = $amqp->channel();
+            $publisher    = new EventPublisher($channel);
+            $orderService = new OrderService($orderRepo, $eventRepo, $publisher);
+
+            $orderController = new OrderController($orderService, $orderRepo, $eventRepo);
+            require __DIR__ . '/../routes/orders.php';
+        } catch (\Throwable) {
+            $router->get('/api/orders', fn() => Response::json(['error' => 'Message broker unavailable'], 503));
+            $router->post('/api/orders', fn() => Response::json(['error' => 'Message broker unavailable'], 503));
+        }
 
         return $router->dispatch($req);
     }

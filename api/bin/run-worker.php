@@ -4,7 +4,6 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Dotenv\Dotenv;
 use App\Database\Connection;
-use App\Events\EventFactory;
 use App\Mail\SmtpMailer;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
@@ -19,7 +18,7 @@ use App\Workers\PaymentWorker;
 use App\Workers\TrackingWorker;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 
-Dotenv::createUnsafeImmutable(__DIR__ . '/..')->safeLoad();
+Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 
 $workerType = $_ENV['WORKER_TYPE'] ?? throw new \RuntimeException('WORKER_TYPE not set');
 $workerId   = $_ENV['WORKER_ID']   ?? throw new \RuntimeException('WORKER_ID not set');
@@ -29,13 +28,18 @@ $pdo = Connection::getInstance();
 $redis = new Redis();
 $redis->connect($_ENV['REDIS_HOST'] ?? 'redis', (int) ($_ENV['REDIS_PORT'] ?? 6379));
 
-$amqp = new AMQPStreamConnection(
-    $_ENV['RABBITMQ_HOST']     ?? 'rabbitmq',
-    (int) ($_ENV['RABBITMQ_PORT'] ?? 5672),
-    $_ENV['RABBITMQ_USER']     ?? 'guest',
-    $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
-);
-$channel = $amqp->channel();
+$channel = null;
+try {
+    $amqp = new AMQPStreamConnection(
+        $_ENV['RABBITMQ_HOST'] ?? 'rabbitmq',
+        (int)($_ENV['RABBITMQ_PORT'] ?? 5672),
+        $_ENV['RABBITMQ_USER'] ?? 'guest',
+        $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
+    );
+    $channel = $amqp->channel();
+} catch (Exception $e) {
+    echo 'Caught exception: ',  $e->getMessage(), "\n";
+}
 
 $publisher = new EventPublisher($channel);
 $publisher->setupExchangesAndQueues();
@@ -73,6 +77,8 @@ $heartbeatInterval = (int) ($_ENV['HEARTBEAT_INTERVAL'] ?? 5);
 
 $channel->basic_qos(null, 1, null);
 $channel->basic_consume($queue, '', false, false, false, false, [$worker, 'process']);
+
+$worker->setWorkerInfo($workerType, $queue);
 
 echo "[{$workerId}] Listening on {$queue}..." . PHP_EOL;
 

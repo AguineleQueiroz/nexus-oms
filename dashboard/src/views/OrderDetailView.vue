@@ -1,6 +1,5 @@
 <template>
-  <AppLayout>
-    <div class="order-detail-view">
+  <div class="order-detail-view">
       <div class="detail-header">
         <button class="back-btn" @click="router.back()">← Voltar</button>
         <h1 class="page-title" v-if="order">{{ order.customer_name }}</h1>
@@ -26,13 +25,11 @@
         </div>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import OrderTimeline from '@/components/orders/OrderTimeline.vue'
 import OrderPipeline from '@/components/orders/OrderPipeline.vue'
 import { api } from '@/services/api'

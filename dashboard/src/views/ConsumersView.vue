@@ -1,14 +1,11 @@
 <template>
-  <AppLayout>
-    <div class="consumers-view">
-      <h1 class="page-title">Workers</h1>
-      <ConsumerGrid :consumers="consumers" />
-    </div>
-  </AppLayout>
+  <div class="consumers-view">
+    <h1 class="page-title">Workers</h1>
+    <ConsumerGrid :consumers="consumers" />
+  </div>
 </template>
 
 <script setup lang="ts">
-import AppLayout from '@/components/layout/AppLayout.vue'
 import ConsumerGrid from '@/components/consumers/ConsumerGrid.vue'
 import { useConsumers } from '@/composables/useConsumers'
 
