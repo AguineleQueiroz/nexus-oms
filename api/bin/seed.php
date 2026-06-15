@@ -6,6 +6,8 @@
  * Modos:
  *   Histórico (padrão) — insere direto no banco, sem RabbitMQ. Rápido para grandes volumes.
  *   Live (--live)      — cria via OrderService + RabbitMQ. Workers processam em tempo real.
+ *                        20% dos pedidos já nascem em 'shipped' para o TrackingWorker processar.
+ *                        Use --no-shipped para desativar esse comportamento.
  *
  * Uso:
  *   php bin/seed.php
@@ -13,14 +15,20 @@
  *   php bin/seed.php --orders=100 --clear
  *   php bin/seed.php --orders=500 --live
  *   php bin/seed.php --orders=500 --live --clear
+ *   php bin/seed.php --orders=500 --live --no-shipped
+ *   php bin/seed.php --orders=500 --failure-rate=20
+ *   php bin/seed.php --orders=500 --failure-rate=20 --clear
  *
  * Via docker:
  *   docker compose exec api php bin/seed.php --orders=100 --live
+ *   docker compose exec api php bin/seed.php --orders=500 --live --clear
+ *   docker compose exec api php bin/seed.php --orders=500 --failure-rate=20 --clear
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Database\Connection;
+use App\Events\OrderEvent;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
 use App\Services\EventPublisher;
@@ -33,10 +41,12 @@ Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 /**
  * CLI args
  */
-$opts        = getopt('', ['orders::', 'clear', 'live']);
+$opts        = getopt('', ['orders::', 'clear', 'live', 'no-shipped', 'failure-rate::']);
 $totalOrders = (int) ($opts['orders'] ?? 50);
 $clear       = isset($opts['clear']);
 $live        = isset($opts['live']);
+$shipped     = $live && !isset($opts['no-shipped']);
+$failureRate = min(100, max(0, (int) ($opts['failure-rate'] ?? 0)));
 
 $pdo = new PDO(
     sprintf(
@@ -169,6 +179,36 @@ $workers = [
 ];
 
 
+$failureMessages = [
+    'Connection timeout: payment gateway unreachable after 3 retries',
+    'External service returned HTTP 503 — Service Unavailable',
+    'Inventory service unavailable: circuit breaker open',
+    'Serialization error: unexpected token in JSON payload',
+    'Database deadlock detected while updating order status',
+    'Order not found: state machine received stale event',
+    'AMQP channel closed unexpectedly during ack',
+    'Redis connection refused: snapshot could not be updated',
+    'Notification provider rate limit exceeded (HTTP 429)',
+    'Invalid order transition: event arrived out of sequence',
+];
+
+/**
+ * Mirrors EventPublisher::bindQueues() — determines which queues each event type reaches.
+ */
+$queueMatchers = [
+    'orders.audit'        => fn(string $t): bool => true,
+    'orders.payment'      => fn(string $t): bool => str_starts_with($t, 'order.payment.'),
+    'orders.notification' => fn(string $t): bool => in_array($t, [
+        'order.created', 'order.payment.pending', 'order.payment.approved',
+        'order.payment.refused', 'order.shipped', 'order.delivered', 'order.cancelled',
+    ], true),
+    'orders.inventory'    => fn(string $t): bool => in_array($t, [
+        'order.created', 'order.picking', 'order.cancelled',
+    ], true),
+    'orders.tracking'     => fn(string $t): bool => $t === 'order.shipped',
+    'orders.fulfillment'  => fn(string $t): bool => $t === 'order.payment.approved',
+];
+
 /**
  * helpers
  */
@@ -238,9 +278,12 @@ echo str_repeat('─', 40) . "\n";
 if ($clear) {
     echo "Clearing existing data... ";
     $pdo->exec('TRUNCATE order_events, processed_events, orders RESTART IDENTITY CASCADE');
-    $keys = $redis->keys('order:*');
-    if ($keys) {
-        $redis->del($keys);
+    $pdo->exec('TRUNCATE consumers_log RESTART IDENTITY CASCADE');
+    foreach (['order:*', 'worker:heartbeat:*'] as $pattern) {
+        $keys = $redis->keys($pattern);
+        if ($keys) {
+            $redis->del($keys);
+        }
     }
     echo "done\n";
 }
@@ -271,14 +314,59 @@ if ($live) {
     $eventRepo    = new EventRepository(Connection::getInstance());
     $orderService = new OrderService($orderRepo, $eventRepo, $publisher);
 
-    echo "Criando {$totalOrders} pedidos via RabbitMQ...\n";
+    $shippedCount = $shipped ? (int) round($totalOrders * 0.20) : 0;
+    $normalCount  = $totalOrders - $shippedCount;
+
+    $shippedLabel = $shippedCount > 0 ? " ({$shippedCount} shipped para TrackingWorker)" : '';
+    echo "Criando {$totalOrders} pedidos via RabbitMQ{$shippedLabel}...\n";
     echo "(Workers processarão em segundo plano)\n\n";
 
     $created = 0;
     $failed  = 0;
     $start   = microtime(true);
 
-    for ($i = 0; $i < $totalOrders; $i++) {
+    $insertShippedOrder = $pdo->prepare('
+        INSERT INTO orders (id, customer_name, customer_email, items, total, status, idempotency_key, metadata)
+        VALUES (:id, :customer_name, :customer_email, :items, :total, :status, :idempotency_key, :metadata)
+    ');
+
+    // Shipped orders: direct DB insert + publish order.shipped for TrackingWorker
+    for ($i = 0; $i < $shippedCount; $i++) {
+        $customer = $customers[array_rand($customers)];
+        $items    = randomItems($products);
+        $total    = array_sum(array_map(fn($it) => $it['price'] * $it['qty'], $items));
+        $orderId  = uuid();
+
+        $insertShippedOrder->execute([
+            ':id'              => $orderId,
+            ':customer_name'   => $customer[0],
+            ':customer_email'  => $customer[1],
+            ':items'           => json_encode($items),
+            ':total'           => $total,
+            ':status'          => 'shipped',
+            ':idempotency_key' => 'live-shipped-' . $orderId,
+            ':metadata'        => json_encode([]),
+        ]);
+
+        $event = OrderEvent::create('order.shipped', $orderId, [
+            'customer_name'  => $customer[0],
+            'customer_email' => $customer[1],
+            'total'          => $total,
+            'status'         => 'shipped',
+        ]);
+        $eventRepo->save($event, 'order.shipped');
+        $publisher->publish($event);
+
+        $created++;
+        $done    = $i + 1;
+        $elapsed = microtime(true) - $start;
+        $rate    = $done / max($elapsed, 0.001);
+        $etaSec  = (int) (($totalOrders - $done) / max($rate, 0.001));
+        echo "\r  " . progressBar($done, $totalOrders) . " {$done}/{$totalOrders}  | " . number_format($rate, 1) . " ord/s | ETA " . formatEta($etaSec) . "   ";
+    }
+
+    // Normal orders via OrderService + RabbitMQ
+    for ($i = 0; $i < $normalCount; $i++) {
         $customer = $customers[array_rand($customers)];
         $items    = randomItems($products);
         $total    = array_sum(array_map(fn($it) => $it['price'] * $it['qty'], $items));
@@ -297,7 +385,7 @@ if ($live) {
         }
 
         $elapsed = microtime(true) - $start;
-        $done    = $i + 1;
+        $done    = $shippedCount + $i + 1;
         $rate    = $done / max($elapsed, 0.001);
         $etaSec  = (int) (($totalOrders - $done) / max($rate, 0.001));
         echo "\r  " . progressBar($done, $totalOrders) . " {$done}/{$totalOrders}  | " . number_format($rate, 1) . " ord/s | ETA " . formatEta($etaSec) . "   ";
@@ -307,6 +395,9 @@ if ($live) {
 
     echo "\n\n";
     echo "  Pedidos criados:  {$created}\n";
+    if ($shippedCount > 0) {
+        echo "  Shipped (tracking): {$shippedCount}\n";
+    }
     if ($failed > 0) {
         echo "  Falhas:           {$failed}\n";
     }
@@ -341,7 +432,8 @@ while ($remaining > 0) {
 
 shuffle($statusList);
 
-echo "Seeding {$totalOrders} orders (histórico)...\n";
+$failureLabel = $failureRate > 0 ? " [failure-rate={$failureRate}%]" : '';
+echo "Seeding {$totalOrders} orders (histórico){$failureLabel}...\n";
 
 $insertOrder = $pdo->prepare('
     INSERT INTO orders (id, customer_name, customer_email, items, total, status, idempotency_key, metadata, created_at, updated_at)
@@ -349,12 +441,18 @@ $insertOrder = $pdo->prepare('
 ');
 
 $insertEvent = $pdo->prepare('
-    INSERT INTO order_events (id, order_id, event_type, routing_key, payload, worker_id, processed, processed_at, published_at)
-    VALUES (:id, :order_id, :event_type, :routing_key, :payload, :worker_id, :processed, :processed_at, :published_at)
+    INSERT INTO order_events (id, order_id, event_type, routing_key, payload, worker_id, attempt, processed, error, processed_at, published_at)
+    VALUES (:id, :order_id, :event_type, :routing_key, :payload, :worker_id, :attempt, :processed, :error, :processed_at, :published_at)
 ');
 
-$totalEvents = 0;
-$summary     = array_fill_keys(array_keys($statusDistribution), 0);
+$insertProcessed = $pdo->prepare('
+    INSERT INTO processed_events (event_id, processed_at) VALUES (:event_id, :processed_at) ON CONFLICT DO NOTHING
+');
+
+$totalEvents  = 0;
+$totalFailed  = 0;
+$summary      = array_fill_keys(array_keys($statusDistribution), 0);
+$queueStats   = array_fill_keys(array_keys($queueMatchers), ['processed' => 0, 'failed' => 0]);
 
 foreach ($statusList as $i => $finalStatus) {
     $customer  = $customers[array_rand($customers)];
@@ -395,8 +493,25 @@ foreach ($statusList as $i => $finalStatus) {
             default                               => 'audit-worker-1',
         };
 
+        $isFailed    = $failureRate > 0 && mt_rand(1, 100) <= $failureRate;
+        $attempt     = $isFailed ? mt_rand(1, 3) : 1;
+        $errorMsg    = $isFailed ? $failureMessages[array_rand($failureMessages)] : null;
+        $eventId     = uuid();
+
+        if ($isFailed) {
+            $totalFailed++;
+        }
+
+        foreach ($queueMatchers as $queue => $matches) {
+            if ($matches($eventType)) {
+                $isFailed
+                    ? $queueStats[$queue]['failed']++
+                    : $queueStats[$queue]['processed']++;
+            }
+        }
+
         $insertEvent->execute([
-            ':id'           => uuid(),
+            ':id'           => $eventId,
             ':order_id'     => $orderId,
             ':event_type'   => $eventType,
             ':routing_key'  => $eventType,
@@ -408,10 +523,16 @@ foreach ($statusList as $i => $finalStatus) {
                 'status'         => $finalStatus,
             ]),
             ':worker_id'    => $workerId,
-            ':processed'    => 'true',
-            ':processed_at' => $processedAt,
+            ':attempt'      => $attempt,
+            ':processed'    => $isFailed ? 'false' : 'true',
+            ':error'        => $errorMsg,
+            ':processed_at' => $isFailed ? null : $processedAt,
             ':published_at' => $publishedAt,
         ]);
+
+        if (!$isFailed) {
+            $insertProcessed->execute([':event_id' => $eventId, ':processed_at' => $processedAt]);
+        }
 
         $totalEvents++;
     }
@@ -435,18 +556,42 @@ foreach ($statusList as $i => $finalStatus) {
 echo "\n\n";
 
 $heartbeatInterval = (int) ($_ENV['HEARTBEAT_INTERVAL'] ?? 5);
+
+$upsertConsumer = $pdo->prepare("
+    INSERT INTO consumers_log (worker_id, worker_type, queue_name, status, last_heartbeat, events_processed, events_failed, started_at)
+    VALUES (:worker_id, :worker_type, :queue_name, 'active', NOW(), :events_processed, :events_failed, :started_at)
+    ON CONFLICT (worker_id) DO UPDATE SET
+        status           = 'active',
+        last_heartbeat   = NOW(),
+        events_processed = EXCLUDED.events_processed,
+        events_failed    = EXCLUDED.events_failed
+");
+
 foreach ($workers as $workerType => $queue) {
-    $workerId = strtolower(preg_replace('/Worker$/', '', $workerType)) . '-worker-1';
+    $workerId        = strtolower(preg_replace('/Worker$/', '', $workerType)) . '-worker-1';
+    $eventsProcessed = $queueStats[$queue]['processed'] ?? 0;
+    $eventsFailed    = $queueStats[$queue]['failed'] ?? 0;
+    $startedAt       = date('Y-m-d H:i:s', strtotime('-1 hour'));
+
     $redis->setex("worker:heartbeat:{$workerId}", $heartbeatInterval * 3 * 60, json_encode([
         'worker_id'        => $workerId,
         'worker_type'      => $workerType,
         'queue_name'       => $queue,
         'status'           => 'active',
         'last_heartbeat'   => date('c'),
-        'events_processed' => mt_rand(50, 500),
-        'events_failed'    => mt_rand(0, 10),
-        'started_at'       => date('c', strtotime('-1 hour')),
+        'events_processed' => $eventsProcessed,
+        'events_failed'    => $eventsFailed,
+        'started_at'       => $startedAt,
     ]));
+
+    $upsertConsumer->execute([
+        ':worker_id'        => $workerId,
+        ':worker_type'      => $workerType,
+        ':queue_name'       => $queue,
+        ':events_processed' => $eventsProcessed,
+        ':events_failed'    => $eventsFailed,
+        ':started_at'       => $startedAt,
+    ]);
 }
 
 echo "Summary:\n";
@@ -458,6 +603,10 @@ foreach ($summary as $status => $count) {
 
 echo "\n";
 echo "  Total events inserted:    {$totalEvents}\n";
+if ($totalFailed > 0) {
+    $pct = number_format($totalFailed / $totalEvents * 100, 1);
+    echo "  Events com erro:          {$totalFailed} ({$pct}%)\n";
+}
 echo "  Redis snapshots updated:  {$totalOrders}\n";
 echo "  Worker heartbeats:        " . count($workers) . "\n";
 echo "\nDone ✓\n\n";

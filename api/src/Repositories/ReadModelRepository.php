@@ -53,7 +53,7 @@ class ReadModelRepository
                     AS published_last_hour,
                 COUNT(*) FILTER (WHERE published_at > NOW() - INTERVAL '1 hour' AND processed = TRUE)
                     AS processed_last_hour,
-                COUNT(*) FILTER (WHERE published_at > NOW() - INTERVAL '1 hour' AND processed = FALSE)
+                COUNT(*) FILTER (WHERE published_at > NOW() - INTERVAL '1 hour' AND processed = FALSE AND error IS NOT NULL)
                     AS failed_last_hour
             FROM order_events
         ");

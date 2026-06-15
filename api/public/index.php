@@ -37,7 +37,7 @@ $pipeline = new Pipeline(
         $eventRepo = new EventRepository($pdo);
 
         $readModel  = new ReadModelRepository($redis, $pdo);
-        $heartbeat  = new HeartbeatService($redis);
+        $heartbeat  = new HeartbeatService($redis, $pdo);
         $rabbitMq   = new RabbitMqManagement(
             $_ENV['RABBITMQ_MANAGEMENT_URL'] ?? 'http://rabbitmq:15672',
             $_ENV['RABBITMQ_USER'] ?? 'guest',

@@ -99,28 +99,65 @@ curl http://localhost:8000/
 
 ### 3. Popular o dashboard com dados de exemplo
 
-**A flag Live (`--live`)** — cria pedidos via `OrderService` com publicação real no RabbitMQ. Os workers processam as mensagens em segundo plano, os contadores do dashboard sobem em tempo real e os emails chegam no Mailpit.
+**Modo histórico (padrão)** — insere diretamente no banco sem RabbitMQ. Rápido para grandes volumes; ideal para popular o dashboard com dados realistas.
 
 ```bash
-# Live (via RabbitMQ — workers processam em tempo real)
-docker compose exec api php bin/seed.php --orders=500 --live
-docker compose exec api php bin/seed.php --orders=1000 --live --clear
+docker compose exec api php bin/seed.php --orders=500
+docker compose exec api php bin/seed.php --orders=500 --clear
+docker compose exec api php bin/seed.php --orders=500 --failure-rate=20 --clear
 ```
 
-> **`--clear` vs sem `--clear`:** com `--clear`, o banco é truncado antes de inserir — você parte do zero com exatamente N pedidos. Sem `--clear`, os novos pedidos são somados ao que já existe no banco.
+**Modo live (`--live`)** — cria pedidos via `OrderService` com publicação real no RabbitMQ. Os workers processam em segundo plano, os contadores sobem em tempo real e os e-mails chegam no Mailpit. 20% dos pedidos já nascem em `shipped` para que o `TrackingWorker` tenha trabalho imediato.
+
+```bash
+docker compose exec api php bin/seed.php --orders=500 --live
+docker compose exec api php bin/seed.php --orders=500 --live --clear
+docker compose exec api php bin/seed.php --orders=500 --live --no-shipped  # desativa os shipped automáticos
+```
+
+> **`--clear` vs sem `--clear`:** com `--clear`, o banco é truncado antes de inserir — você parte do zero com exatamente N pedidos. Sem `--clear`, os novos pedidos são somados ao que já existe.
 
 Todas as flags disponíveis:
 
-| Flag | Descrição |
-|---|---|
-| `--live` | Publica via RabbitMQ; workers processam em tempo real |
-| `--clear` | Limpa `orders`, `order_events` e Redis antes de semear |
+| Flag | Padrão | Descrição |
+|---|---|---|
+| `--orders=N` | `50` | Quantidade de pedidos a criar |
+| `--live` | off | Publica via RabbitMQ; workers processam em tempo real |
+| `--clear` | off | Limpa `orders`, `order_events` e Redis antes de semear |
+| `--no-shipped` | off | Desativa os 20% de pedidos shipped criados automaticamente no modo live |
+| `--failure-rate=N` | `0` | % de eventos marcados como falha (modo histórico) |
 
-### 4. Abrir o dashboard
+### 4. Truncar todos os dados
+
+```bash
+docker compose exec api php bin/truncate.php        # pede confirmação
+docker compose exec api php bin/truncate.php --yes  # sem confirmação
+```
+
+Limpa todas as tabelas (`orders`, `order_events`, `processed_events`, `consumers_log`) e as chaves Redis correspondentes.
+
+### 5. Monitorar processamento em tempo real
+
+```bash
+# Apenas monitorar o que os workers estão processando
+docker compose exec api php bin/watch.php
+
+# Injetar pedidos e monitorar
+docker compose exec api php bin/watch.php --live --orders=30
+docker compose exec api php bin/watch.php --live --orders=50 --clear
+docker compose exec api php bin/watch.php --live --orders=50 --failure-rate=20 --clear
+```
+
+Atualiza a tela a cada 2 segundos exibindo os últimos 25 eventos com código de cor:
+- **Verde `✓`** — processado com sucesso
+- **Vermelho `✗`** — falhou (com prévia do erro)
+- **Amarelo `⋯`** — aguardando processamento
+
+### 6. Abrir o dashboard
 
 Acesse **http://localhost:5173**
 
-### 5. Criar um pedido manualmente
+### 7. Criar um pedido manualmente
 
 ```bash
 curl -X POST http://localhost:8000/api/orders \
@@ -174,7 +211,9 @@ nexus-oms/
 ├── api/                          # Backend PHP 8.2
 │   ├── bin/
 │   │   ├── run-worker.php        # Dispatcher de workers
-│   │   └── seed.php              # Seeder de pedidos
+│   │   ├── seed.php              # Seeder de pedidos (histórico e live)
+│   │   ├── watch.php             # Monitor em tempo real do event stream
+│   │   └── truncate.php          # Limpa todas as tabelas e chaves Redis
 │   ├── src/
 │   │   ├── Controllers/          # OrderController, DashboardController
 │   │   ├── Services/             # OrderService, EventPublisher, HeartbeatService

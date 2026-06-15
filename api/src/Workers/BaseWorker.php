@@ -24,18 +24,6 @@ abstract class BaseWorker
         protected readonly string      $workerId,
     ) {
         $this->startedAt = (new \DateTimeImmutable())->format('c');
-        $this->loadCountersFromRedis();
-    }
-
-    private function loadCountersFromRedis(): void
-    {
-        $data = $this->redis->get("worker:heartbeat:{$this->workerId}");
-        if ($data === false) {
-            return;
-        }
-        $blob = json_decode($data, true);
-        $this->eventsProcessed = (int) ($blob['events_processed'] ?? 0);
-        $this->eventsFailed    = (int) ($blob['events_failed'] ?? 0);
     }
 
     public function setWorkerInfo(string $workerType, string $queueName): void
@@ -61,10 +49,12 @@ abstract class BaseWorker
         try {
             $this->handle($event);
             $this->markProcessed($eventId);
+            $this->markEventProcessed($eventId);
             $this->eventsProcessed++;
             $msg->ack();
         } catch (\Throwable $e) {
             $this->eventsFailed++;
+            $this->markEventFailed($eventId, $e->getMessage(), $retryCount + 1);
             $this->handleFailure($msg, $retryCount + 1);
         }
     }
@@ -86,6 +76,34 @@ abstract class BaseWorker
                 'started_at'       => $this->startedAt,
             ])
         );
+
+        $this->persistHeartbeat();
+    }
+
+    private function persistHeartbeat(): void
+    {
+        // Don't overwrite seed/historical data when the worker is idle this session
+        if ($this->eventsProcessed === 0 && $this->eventsFailed === 0) {
+            return;
+        }
+
+        $stmt = $this->pdo->prepare("
+            INSERT INTO consumers_log (worker_id, worker_type, queue_name, status, last_heartbeat, events_processed, events_failed, started_at)
+            VALUES (:worker_id, :worker_type, :queue_name, 'active', NOW(), :events_processed, :events_failed, :started_at::timestamp)
+            ON CONFLICT (worker_id) DO UPDATE SET
+                status           = 'active',
+                last_heartbeat   = NOW(),
+                events_processed = EXCLUDED.events_processed,
+                events_failed    = EXCLUDED.events_failed
+        ");
+        $stmt->execute([
+            ':worker_id'        => $this->workerId,
+            ':worker_type'      => $this->workerType,
+            ':queue_name'       => $this->queueName,
+            ':events_processed' => $this->eventsProcessed,
+            ':events_failed'    => $this->eventsFailed,
+            ':started_at'       => $this->startedAt,
+        ]);
     }
 
     private function handleFailure(AMQPMessage $msg, int $attempt): void
@@ -137,6 +155,28 @@ abstract class BaseWorker
             'INSERT INTO processed_events (event_id) VALUES (:id) ON CONFLICT DO NOTHING'
         );
         $stmt->execute([':id' => $eventId]);
+    }
+
+    private function markEventProcessed(string $eventId): void
+    {
+        if ($eventId === '') {
+            return;
+        }
+        $stmt = $this->pdo->prepare(
+            "UPDATE order_events SET processed = TRUE, processed_at = NOW(), worker_id = :wid WHERE id = :id"
+        );
+        $stmt->execute([':wid' => $this->workerId, ':id' => $eventId]);
+    }
+
+    private function markEventFailed(string $eventId, string $error, int $attempt): void
+    {
+        if ($eventId === '') {
+            return;
+        }
+        $stmt = $this->pdo->prepare(
+            'UPDATE order_events SET error = :err, attempt = :att WHERE id = :id'
+        );
+        $stmt->execute([':err' => $error, ':att' => $attempt, ':id' => $eventId]);
     }
 
     private function retryCount(AMQPMessage $msg): int
