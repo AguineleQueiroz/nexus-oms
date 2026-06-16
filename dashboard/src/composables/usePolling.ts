@@ -1,24 +1,25 @@
-import { onMounted, onUnmounted } from 'vue'
+import {onMounted, onUnmounted} from 'vue'
 
 export function usePolling(callback: () => Promise<void> | void, interval: number) {
-  let timer: ReturnType<typeof setInterval> | null = null
+    let timer: ReturnType<typeof setInterval> | null = null
 
-  const safe = () => Promise.resolve(callback()).catch(() => {})
+    const safe = () => Promise.resolve(callback()).catch(() => {
+    })
 
-  const start = () => {
-    safe()
-    timer = setInterval(safe, interval)
-  }
-
-  const stop = () => {
-    if (timer !== null) {
-      clearInterval(timer)
-      timer = null
+    const start = () => {
+        safe()
+        timer = setInterval(safe, interval)
     }
-  }
 
-  onMounted(start)
-  onUnmounted(stop)
+    const stop = () => {
+        if (timer !== null) {
+            clearInterval(timer)
+            timer = null
+        }
+    }
 
-  return { start, stop }
+    onMounted(start)
+    onUnmounted(stop)
+
+    return {start, stop}
 }

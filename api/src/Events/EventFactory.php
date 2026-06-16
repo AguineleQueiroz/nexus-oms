@@ -15,11 +15,11 @@ final class EventFactory
         }
 
         return OrderEvent::restore(
-            eventId:    $data['event_id'],
-            eventType:  $data['event_type'],
-            orderId:    $data['order_id'],
+            eventId: $data['event_id'],
+            eventType: $data['event_type'],
+            orderId: $data['order_id'],
             occurredAt: $data['occurred_at'],
-            payload:    $data['payload'],
+            payload: $data['payload'],
         );
     }
 }

@@ -36,11 +36,14 @@ function makeAuditWorker(EventRepository $eventRepo, ReadModelRepository $readMo
     $pdo    = Mockery::mock(PDO::class);
     $select = Mockery::mock(PDOStatement::class);
     $insert = Mockery::mock(PDOStatement::class);
+    $update = Mockery::mock(PDOStatement::class);
     $pdo->shouldReceive('prepare')->with(Mockery::pattern('/SELECT/'))->andReturn($select);
     $pdo->shouldReceive('prepare')->with(Mockery::pattern('/INSERT/'))->andReturn($insert);
+    $pdo->shouldReceive('prepare')->with(Mockery::pattern('/UPDATE/'))->andReturn($update);
     $select->shouldReceive('execute')->andReturn(true);
     $select->shouldReceive('fetch')->andReturn(false);
     $insert->shouldReceive('execute')->andReturn(true);
+    $update->shouldReceive('execute')->andReturn(true);
 
     return new AuditWorker($channel, $redis, $pdo, 'audit-worker-1', $eventRepo, $readModel);
 }

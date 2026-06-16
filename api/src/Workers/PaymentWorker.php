@@ -10,12 +10,13 @@ class PaymentWorker extends BaseWorker
     public ?bool $forceApprove = null;
 
     public function __construct(
-        AMQPChannel          $channel,
-        \Redis               $redis,
-        \PDO                 $pdo,
-        string               $workerId,
+        AMQPChannel                   $channel,
+        \Redis                        $redis,
+        \PDO                          $pdo,
+        string                        $workerId,
         private readonly OrderService $orderService,
-    ) {
+    )
+    {
         parent::__construct($channel, $redis, $pdo, $workerId);
     }
 

@@ -4,13 +4,13 @@
       Nenhum worker registrado. Inicie os workers ou rode o seeder para popular dados.
     </div>
     <div
-      v-for="consumer in consumers"
-      :key="consumer.worker_id"
-      data-testid="consumer-card"
-      :class="['consumer-card', consumer.status]"
+        v-for="consumer in consumers"
+        :key="consumer.worker_id"
+        :class="['consumer-card', consumer.status]"
+        data-testid="consumer-card"
     >
       <div class="card-header">
-        <span :class="['status-dot', consumer.status === 'active' ? 'pulse' : '']" />
+        <span :class="['status-dot', consumer.status === 'active' ? 'pulse' : '']"/>
         <span class="worker-type">{{ consumer.worker_type }}</span>
         <span :class="['status-badge', consumer.status]">{{ consumer.status }}</span>
       </div>
@@ -26,14 +26,14 @@
           <span class="metric-value success">{{ consumer.events_processed.toLocaleString('pt-BR') }}</span>
           <span class="metric-label">Processados</span>
         </div>
-        <div class="metric-divider" />
+        <div class="metric-divider"/>
         <div class="metric">
           <span :class="['metric-value', consumer.events_failed > 0 ? 'error' : 'muted']">
             {{ consumer.events_failed }}
           </span>
           <span class="metric-label">Falhas</span>
         </div>
-        <div class="metric-divider" />
+        <div class="metric-divider"/>
         <div class="metric">
           <span class="metric-value info">{{ heartbeatAgo(consumer.last_heartbeat) }}</span>
           <span class="metric-label">Heartbeat</span>
@@ -41,22 +41,22 @@
       </div>
 
       <!-- Sparkline D3 -->
-      <div data-testid="sparkline" class="sparkline">
+      <div class="sparkline" data-testid="sparkline">
         <svg
-          :ref="el => setSvgRef(el as SVGSVGElement | null, consumer.worker_id)"
-          width="100%"
-          height="36"
-          class="sparkline-svg"
+            :ref="el => setSvgRef(el as SVGSVGElement | null, consumer.worker_id)"
+            class="sparkline-svg"
+            height="36"
+            width="100%"
         />
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { onMounted, watch } from 'vue'
+<script lang="ts" setup>
+import {onMounted, watch} from 'vue'
 import * as d3 from 'd3'
-import type { Consumer } from '@/types'
+import type {Consumer} from '@/types'
 
 const props = defineProps<{ consumers: Consumer[] }>()
 
@@ -78,9 +78,9 @@ function drawSparkline(consumer: Consumer) {
 
   d3.select(el).selectAll('*').remove()
 
-  const total  = consumer.events_processed + consumer.events_failed || 1
-  const ratio  = consumer.events_processed / total
-  const points = Array.from({ length: 14 }, (_, i) => {
+  const total = consumer.events_processed + consumer.events_failed || 1
+  const ratio = consumer.events_processed / total
+  const points = Array.from({length: 14}, (_, i) => {
     const noise = Math.sin(i * 1.7 + consumer.events_processed * 0.01) * 0.12
     return Math.max(0.05, Math.min(0.95, ratio + noise))
   })
@@ -92,37 +92,37 @@ function drawSparkline(consumer: Consumer) {
   const y = d3.scaleLinear().domain([0, 1]).range([h - 2, 4])
 
   const area = d3.area<number>()
-    .x((_, i) => x(i))
-    .y0(h)
-    .y1(d => y(d))
-    .curve(d3.curveCatmullRom.alpha(0.5))
+      .x((_, i) => x(i))
+      .y0(h)
+      .y1(d => y(d))
+      .curve(d3.curveCatmullRom.alpha(0.5))
 
   const line = d3.line<number>()
-    .x((_, i) => x(i))
-    .y(d => y(d))
-    .curve(d3.curveCatmullRom.alpha(0.5))
+      .x((_, i) => x(i))
+      .y(d => y(d))
+      .curve(d3.curveCatmullRom.alpha(0.5))
 
   const color = consumer.status === 'active'
-    ? '#00e676'
-    : consumer.status === 'idle'
-      ? '#ffd600'
-      : '#4a4a4a'
+      ? '#00e676'
+      : consumer.status === 'idle'
+          ? '#ffd600'
+          : '#4a4a4a'
 
   d3.select(el)
-    .append('path')
-    .datum(points)
-    .attr('fill', color)
-    .attr('fill-opacity', 0.07)
-    .attr('d', area)
+      .append('path')
+      .datum(points)
+      .attr('fill', color)
+      .attr('fill-opacity', 0.07)
+      .attr('d', area)
 
   d3.select(el)
-    .append('path')
-    .datum(points)
-    .attr('fill', 'none')
-    .attr('stroke', color)
-    .attr('stroke-width', 1.5)
-    .attr('stroke-linecap', 'round')
-    .attr('d', line)
+      .append('path')
+      .datum(points)
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', 1.5)
+      .attr('stroke-linecap', 'round')
+      .attr('d', line)
 }
 
 function drawAll() {
@@ -130,7 +130,7 @@ function drawAll() {
 }
 
 onMounted(drawAll)
-watch(() => props.consumers, drawAll, { deep: true })
+watch(() => props.consumers, drawAll, {deep: true})
 </script>
 
 <style scoped>
@@ -161,22 +161,36 @@ watch(() => props.consumers, drawAll, { deep: true })
   gap: 10px;
   transition: border-color var(--transition-fast);
 }
-.consumer-card.active  { border-color: rgba(0, 230, 118, 0.2); }
-.consumer-card.idle    { border-color: rgba(255, 214, 0, 0.15); }
-.consumer-card.stopped { border-color: rgba(255, 61, 0, 0.15); }
+
+.consumer-card.active {
+  border-color: rgba(0, 230, 118, 0.2);
+}
+
+.consumer-card.idle {
+  border-color: rgba(255, 214, 0, 0.15);
+}
+
+.consumer-card.stopped {
+  border-color: rgba(255, 61, 0, 0.15);
+}
 
 .card-header {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .status-dot {
-  width: 8px; height: 8px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--success);
   flex-shrink: 0;
 }
-.status-dot.pulse { animation: pulse-dot 2s ease-in-out infinite; }
+
+.status-dot.pulse {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
 
 .worker-type {
   font-size: 13px;
@@ -184,6 +198,7 @@ watch(() => props.consumers, drawAll, { deep: true })
   color: var(--text-primary);
   flex: 1;
 }
+
 .status-badge {
   font-size: 9px;
   font-weight: 600;
@@ -192,20 +207,34 @@ watch(() => props.consumers, drawAll, { deep: true })
   padding: 2px 7px;
   border-radius: var(--radius-full);
 }
-.status-badge.active  { background: var(--success-bg);  color: var(--success); }
-.status-badge.idle    { background: var(--warning-bg);  color: var(--warning); }
-.status-badge.stopped { background: var(--error-bg);    color: var(--error); }
+
+.status-badge.active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.status-badge.idle {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.status-badge.stopped {
+  background: var(--error-bg);
+  color: var(--error);
+}
 
 .worker-id-row {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .worker-id {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
 }
+
 .queue-name {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -221,6 +250,7 @@ watch(() => props.consumers, drawAll, { deep: true })
   padding: 8px 12px;
   gap: 8px;
 }
+
 .metric {
   flex: 1;
   display: flex;
@@ -228,22 +258,38 @@ watch(() => props.consumers, drawAll, { deep: true })
   align-items: center;
   gap: 2px;
 }
+
 .metric-value {
   font-family: var(--font-mono);
   font-size: 18px;
   font-weight: 700;
   line-height: 1;
 }
-.metric-value.success { color: var(--success); }
-.metric-value.error   { color: var(--error); }
-.metric-value.muted   { color: var(--text-tertiary); }
-.metric-value.info    { color: var(--info); font-size: 14px; }
+
+.metric-value.success {
+  color: var(--success);
+}
+
+.metric-value.error {
+  color: var(--error);
+}
+
+.metric-value.muted {
+  color: var(--text-tertiary);
+}
+
+.metric-value.info {
+  color: var(--info);
+  font-size: 14px;
+}
+
 .metric-label {
   font-size: 9px;
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
 .metric-divider {
   width: 1px;
   height: 28px;
@@ -251,6 +297,12 @@ watch(() => props.consumers, drawAll, { deep: true })
   flex-shrink: 0;
 }
 
-.sparkline { overflow: hidden; }
-.sparkline-svg { display: block; overflow: visible; }
+.sparkline {
+  overflow: hidden;
+}
+
+.sparkline-svg {
+  display: block;
+  overflow: visible;
+}
 </style>

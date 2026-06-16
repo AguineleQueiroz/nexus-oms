@@ -7,10 +7,10 @@ class InventoryWorker extends BaseWorker
     protected function handle(array $event): void
     {
         match ($event['event_type']) {
-            'order.created'   => $this->reserveStock($event),
-            'order.picking'   => $this->deductStock($event),
+            'order.created' => $this->reserveStock($event),
+            'order.picking' => $this->deductStock($event),
             'order.cancelled' => $this->releaseStock($event),
-            default           => null,
+            default => null,
         };
     }
 

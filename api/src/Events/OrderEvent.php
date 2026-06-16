@@ -24,7 +24,9 @@ final class OrderEvent
         public readonly string $orderId,
         public readonly string $occurredAt,
         public readonly array  $payload,
-    ) {}
+    )
+    {
+    }
 
     /**
      * @throws RandomException
@@ -36,33 +38,12 @@ final class OrderEvent
         }
 
         return new self(
-            eventId:    self::generateUuid(),
-            eventType:  $eventType,
-            orderId:    $orderId,
+            eventId: self::generateUuid(),
+            eventType: $eventType,
+            orderId: $orderId,
             occurredAt: gmdate('Y-m-d\TH:i:s\Z'),
-            payload:    $payload,
+            payload: $payload,
         );
-    }
-
-    public static function restore(
-        string $eventId,
-        string $eventType,
-        string $orderId,
-        string $occurredAt,
-        array  $payload,
-    ): self {
-        return new self($eventId, $eventType, $orderId, $occurredAt, $payload);
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'event_id'    => $this->eventId,
-            'event_type'  => $this->eventType,
-            'order_id'    => $this->orderId,
-            'occurred_at' => $this->occurredAt,
-            'payload'     => $this->payload,
-        ];
     }
 
     /**
@@ -75,5 +56,27 @@ final class OrderEvent
         $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
 
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+    }
+
+    public static function restore(
+        string $eventId,
+        string $eventType,
+        string $orderId,
+        string $occurredAt,
+        array  $payload,
+    ): self
+    {
+        return new self($eventId, $eventType, $orderId, $occurredAt, $payload);
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'event_id' => $this->eventId,
+            'event_type' => $this->eventType,
+            'order_id' => $this->orderId,
+            'occurred_at' => $this->occurredAt,
+            'payload' => $this->payload,
+        ];
     }
 }

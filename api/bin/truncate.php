@@ -47,7 +47,7 @@ $pdo = new PDO(
 );
 
 $redis = new Redis();
-$redis->connect($_ENV['REDIS_HOST'] ?? 'localhost', (int) ($_ENV['REDIS_PORT'] ?? 6379));
+$redis->connect($_ENV['REDIS_HOST'] ?? 'localhost', (int)($_ENV['REDIS_PORT'] ?? 6379));
 
 echo "  Truncating tables... ";
 $pdo->exec('TRUNCATE order_events, processed_events, orders RESTART IDENTITY CASCADE');

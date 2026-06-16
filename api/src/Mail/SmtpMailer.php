@@ -8,7 +8,9 @@ class SmtpMailer implements MailerInterface
         private readonly string $host,
         private readonly int    $port,
         private readonly string $from,
-    ) {}
+    )
+    {
+    }
 
     public function send(string $to, string $subject, string $body): void
     {
@@ -28,7 +30,7 @@ class SmtpMailer implements MailerInterface
             $this->write($socket, "DATA");
             $this->expect($socket, '354');
 
-            $date    = date('r');
+            $date = date('r');
             $subject = mb_encode_mimeheader($subject, 'UTF-8', 'B');
             $this->write($socket, implode("\r\n", [
                 "From: {$this->from}",
@@ -49,12 +51,6 @@ class SmtpMailer implements MailerInterface
     }
 
     /** @param resource $socket */
-    private function write($socket, string $line): void
-    {
-        fwrite($socket, $line . "\r\n");
-    }
-
-    /** @param resource $socket */
     private function expect($socket, string $code): string
     {
         $response = '';
@@ -68,5 +64,11 @@ class SmtpMailer implements MailerInterface
             throw new \RuntimeException("SMTP unexpected response (expected {$code}): {$response}");
         }
         return $response;
+    }
+
+    /** @param resource $socket */
+    private function write($socket, string $line): void
+    {
+        fwrite($socket, $line . "\r\n");
     }
 }

@@ -2,18 +2,16 @@
 
 /**
  * Real-time event stream monitor. Polls order_events and renders a live table.
- * With --live, also injects orders into the pipeline (including shipped ones for TrackingWorker).
+ * With --orders=N, injects N orders into the pipeline via RabbitMQ before monitoring.
  *
  * Uso:
  *   php bin/watch.php
- *   php bin/watch.php --live --orders=30
- *   php bin/watch.php --live --orders=50 --clear
- *   php bin/watch.php --live --orders=50 --failure-rate=20
- *   php bin/watch.php --live --orders=50 --failure-rate=20 --clear
+ *   php bin/watch.php --orders=30
+ *   php bin/watch.php --orders=50 --clear
  *
  * Via docker:
- *   docker compose exec api php bin/watch.php --live --orders=30
- *   docker compose exec api php bin/watch.php --live --orders=50 --failure-rate=20 --clear
+ *   docker compose exec api php bin/watch.php --orders=30
+ *   docker compose exec api php bin/watch.php --orders=50 --clear
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -31,58 +29,45 @@ Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 /**
  * CLI arguments
  */
-$opts        = getopt('', ['live', 'clear', 'orders::', 'failure-rate::', 'interval::']);
-$live        = isset($opts['live']);
-$clear       = isset($opts['clear']);
-$totalOrders = (int) ($opts['orders'] ?? 30);
-$failureRate = min(100, max(0, (int) ($opts['failure-rate'] ?? 0)));
-$interval    = max(1, (int) ($opts['interval'] ?? 2));
-
+$opts = getopt('', ['clear', 'orders::', 'interval::']);
+$clear = isset($opts['clear']);
+$totalOrders = (int)($opts['orders'] ?? 0);
+$interval = max(1, (int)($opts['interval'] ?? 2));
 
 
 /**
  * Fake data - mirrors seed.php
  */
 $customers = [
-    ['João Silva',      'joao.silva@exemplo.com'],
-    ['Maria Oliveira',  'maria.oliveira@exemplo.com'],
-    ['Carlos Souza',    'carlos.souza@exemplo.com'],
-    ['Ana Lima',        'ana.lima@exemplo.com'],
-    ['Pedro Alves',     'pedro.alves@exemplo.com'],
-    ['Fernanda Costa',  'fernanda.costa@exemplo.com'],
-    ['Lucas Mendes',    'lucas.mendes@exemplo.com'],
-    ['Juliana Rocha',   'juliana.rocha@exemplo.com'],
+    ['João Silva', 'joao.silva@exemplo.com'],
+    ['Maria Oliveira', 'maria.oliveira@exemplo.com'],
+    ['Carlos Souza', 'carlos.souza@exemplo.com'],
+    ['Ana Lima', 'ana.lima@exemplo.com'],
+    ['Pedro Alves', 'pedro.alves@exemplo.com'],
+    ['Fernanda Costa', 'fernanda.costa@exemplo.com'],
+    ['Lucas Mendes', 'lucas.mendes@exemplo.com'],
+    ['Juliana Rocha', 'juliana.rocha@exemplo.com'],
     ['Rafael Carvalho', 'rafael.carvalho@exemplo.com'],
-    ['Beatriz Nunes',   'beatriz.nunes@exemplo.com'],
+    ['Beatriz Nunes', 'beatriz.nunes@exemplo.com'],
 ];
 
 $products = [
-    ['Tênis Nike Air Max',  45990],
-    ['Fone Bluetooth JBL',  34990],
-    ['Mouse Gamer RGB',     19990],
-    ['Teclado Mecânico',    28990],
+    ['Tênis Nike Air Max', 45990],
+    ['Fone Bluetooth JBL', 34990],
+    ['Mouse Gamer RGB', 19990],
+    ['Teclado Mecânico', 28990],
     ['Monitor 27" Full HD', 129990],
-    ['Mochila 30L',         18990],
-    ['Livro Clean Code',     8990],
+    ['Mochila 30L', 18990],
+    ['Livro Clean Code', 8990],
     ['Cadeira de Escritório', 89990],
 ];
-
-$failureMessages = [
-    'Connection timeout: payment gateway unreachable after 3 retries',
-    'External service returned HTTP 503 — Service Unavailable',
-    'Database deadlock detected while updating order status',
-    'Order not found: state machine received stale event',
-    'Notification provider rate limit exceeded (HTTP 429)',
-    'Invalid order transition: event arrived out of sequence',
-];
-
 
 /**
  * Helpers function
  */
 function watchUuid(): string
 {
-    $bytes    = random_bytes(16);
+    $bytes = random_bytes(16);
     $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
     $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
@@ -92,7 +77,7 @@ function watchItems(array $products): array
 {
     $items = [];
     for ($j = 0, $c = mt_rand(1, 3); $j < $c; $j++) {
-        $p       = $products[array_rand($products)];
+        $p = $products[array_rand($products)];
         $items[] = ['product' => $p[0], 'qty' => mt_rand(1, 2), 'price' => $p[1]];
     }
     return $items;
@@ -100,7 +85,7 @@ function watchItems(array $products): array
 
 function progressBar(int $current, int $total, int $width = 20): string
 {
-    $filled = (int) round($current / max($total, 1) * $width);
+    $filled = (int)round($current / max($total, 1) * $width);
     return '[' . str_repeat('█', $filled) . str_repeat('░', $width - $filled) . ']';
 }
 
@@ -108,13 +93,13 @@ function progressBar(int $current, int $total, int $width = 20): string
 /**
  * ANSI codes
  */
-const C_GREEN  = "\033[32m";
-const C_RED    = "\033[31m";
+const C_GREEN = "\033[32m";
+const C_RED = "\033[31m";
 const C_YELLOW = "\033[33m";
-const C_CYAN   = "\033[36m";
-const C_BOLD   = "\033[1m";
-const C_RESET  = "\033[0m";
-const C_DIM    = "\033[2m";
+const C_CYAN = "\033[36m";
+const C_BOLD = "\033[1m";
+const C_RESET = "\033[0m";
+const C_DIM = "\033[2m";
 
 /**
  * Connections
@@ -132,8 +117,7 @@ $pdo = new PDO(
 );
 
 $redis = new Redis();
-$redis->connect($_ENV['REDIS_HOST'] ?? 'localhost', (int) ($_ENV['REDIS_PORT'] ?? 6379));
-
+$redis->connect($_ENV['REDIS_HOST'] ?? 'localhost', (int)($_ENV['REDIS_PORT'] ?? 6379));
 
 
 if ($clear) {
@@ -150,13 +134,13 @@ if ($clear) {
 }
 
 
-if ($live) {
+if ($totalOrders > 0) {
     echo "\nConectando ao RabbitMQ... ";
     try {
-        $amqp    = new AMQPStreamConnection(
-            $_ENV['RABBITMQ_HOST']     ?? 'rabbitmq',
-            (int) ($_ENV['RABBITMQ_PORT']     ?? 5672),
-            $_ENV['RABBITMQ_USER']     ?? 'guest',
+        $amqp = new AMQPStreamConnection(
+            $_ENV['RABBITMQ_HOST'] ?? 'rabbitmq',
+            (int)($_ENV['RABBITMQ_PORT'] ?? 5672),
+            $_ENV['RABBITMQ_USER'] ?? 'guest',
             $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
         );
         $channel = $amqp->channel();
@@ -166,84 +150,28 @@ if ($live) {
     }
     echo "ok\n";
 
-    $publisher    = new EventPublisher($channel);
+    $publisher = new EventPublisher($channel);
     $publisher->setupExchangesAndQueues();
 
-    $orderRepo    = new OrderRepository(Connection::getInstance());
+    $orderRepo = new OrderRepository(Connection::getInstance());
     $orderService = new OrderService($orderRepo, new \App\Repositories\EventRepository(Connection::getInstance()), $publisher);
 
-    $failCount  = (int) round($totalOrders * $failureRate / 100);
-    $liveCount  = $totalOrders - $failCount;
+    echo "Injetando {$totalOrders} pedidos...\n";
 
-    $failureLabel = $failureRate > 0 ? " [failure-rate={$failureRate}%]" : '';
-    echo "Injetando {$totalOrders} pedidos{$failureLabel}...\n";
-
-    $insertOrder = $pdo->prepare('
-        INSERT INTO orders (id, customer_name, customer_email, items, total, status, idempotency_key, metadata)
-        VALUES (:id, :customer_name, :customer_email, :items, :total, :status, :idempotency_key, :metadata)
-    ');
-
-    $insertEvent = $pdo->prepare('
-        INSERT INTO order_events (id, order_id, event_type, routing_key, payload, worker_id, attempt, processed, error)
-        VALUES (:id, :order_id, :event_type, :routing_key, :payload, :worker_id, :attempt, :processed, :error)
-    ');
-
-    $done  = 0;
+    $done = 0;
     $start = microtime(true);
 
-    for ($i = 0; $i < $failCount; $i++) {
+    for ($i = 0; $i < $totalOrders; $i++) {
         $customer = $customers[array_rand($customers)];
-        $items    = watchItems($products);
-        $total    = array_sum(array_map(fn($it) => $it['price'] * $it['qty'], $items));
-        $orderId  = watchUuid();
-        $eventId  = watchUuid();
-        $errorMsg = $failureMessages[array_rand($failureMessages)];
-
-        $insertOrder->execute([
-            ':id'              => $orderId,
-            ':customer_name'   => $customer[0],
-            ':customer_email'  => $customer[1],
-            ':items'           => json_encode($items),
-            ':total'           => $total,
-            ':status'          => 'payment_refused',
-            ':idempotency_key' => 'watch-fail-' . $orderId,
-            ':metadata'        => json_encode([]),
-        ]);
-
-        $insertEvent->execute([
-            ':id'          => $eventId,
-            ':order_id'    => $orderId,
-            ':event_type'  => 'order.payment.pending',
-            ':routing_key' => 'order.payment.pending',
-            ':payload'     => json_encode([
-                'customer_name'  => $customer[0],
-                'customer_email' => $customer[1],
-                'total'          => $total,
-                'status'         => 'payment_refused',
-            ]),
-            ':worker_id'   => 'payment-worker-1',
-            ':attempt'     => mt_rand(2, 3),
-            ':processed'   => 'false',
-            ':error'       => $errorMsg,
-        ]);
-
-        $done++;
-        $elapsed = microtime(true) - $start;
-        $rate    = $done / max($elapsed, 0.001);
-        echo "\r  " . progressBar($done, $totalOrders) . " {$done}/{$totalOrders}   ";
-    }
-
-    for ($i = 0; $i < $liveCount; $i++) {
-        $customer = $customers[array_rand($customers)];
-        $items    = watchItems($products);
-        $total    = array_sum(array_map(fn($it) => $it['price'] * $it['qty'], $items));
+        $items = watchItems($products);
+        $total = array_sum(array_map(fn($it) => $it['price'] * $it['qty'], $items));
 
         try {
             $orderService->createOrder([
-                'customer_name'   => $customer[0],
-                'customer_email'  => $customer[1],
-                'items'           => $items,
-                'total'           => $total,
+                'customer_name' => $customer[0],
+                'customer_email' => $customer[1],
+                'items' => $items,
+                'total' => $total,
                 'idempotency_key' => 'watch-live-' . watchUuid(),
             ]);
         } catch (\Throwable) {
@@ -277,7 +205,7 @@ while (true) {
     $stmtEvents->execute();
     $events = $stmtEvents->fetchAll();
 
-    $statsRow   = $pdo->query("
+    $statsRow = $pdo->query("
         SELECT
             COUNT(*) FILTER (WHERE processed = TRUE)                        AS ok,
             COUNT(*) FILTER (WHERE processed = FALSE AND error IS NOT NULL) AS failed,
@@ -298,10 +226,10 @@ while (true) {
     echo C_BOLD . "Nexus OMS — Watch" . C_RESET . "  " . C_DIM . "● {$now}" . C_RESET . "\n";
     echo $sep . "\n";
 
-    $wCnt  = (int) $workerRow['cnt'];
-    $ok    = (int) $statsRow['ok'];
-    $fail  = (int) $statsRow['failed'];
-    $pend  = (int) $statsRow['pending'];
+    $wCnt = (int)$workerRow['cnt'];
+    $ok = (int)$statsRow['ok'];
+    $fail = (int)$statsRow['failed'];
+    $pend = (int)$statsRow['pending'];
     echo C_BOLD . "Workers:" . C_RESET . " {$wCnt} active";
     echo "  |  Events (1h): ";
     echo C_GREEN . "{$ok} processed" . C_RESET;
@@ -316,23 +244,23 @@ while (true) {
     echo "  " . str_repeat('─', 76) . "\n";
 
     foreach ($events as $row) {
-        $time     = substr($row['published_at'] ?? '', 11, 8);
-        $type     = $row['event_type'] ?? '';
-        $orderId  = substr($row['order_id'] ?? '', 0, 8);
-        $worker   = $row['worker_id'] ?? '';
-        $processed = (bool) ($row['processed'] === true || $row['processed'] === 't' || $row['processed'] === '1');
-        $hasError  = !empty($row['error']);
+        $time = substr($row['published_at'] ?? '', 11, 8);
+        $type = $row['event_type'] ?? '';
+        $orderId = substr($row['order_id'] ?? '', 0, 8);
+        $worker = $row['worker_id'] ?? '';
+        $processed = (bool)($row['processed'] === true || $row['processed'] === 't' || $row['processed'] === '1');
+        $hasError = !empty($row['error']);
 
         if ($processed) {
             $status = C_GREEN . '✓' . C_RESET;
-            $color  = C_RESET;
+            $color = C_RESET;
         } elseif ($hasError) {
             $shortErr = mb_substr($row['error'], 0, 28);
-            $status   = C_RED . '✗ ' . $shortErr . C_RESET;
-            $color    = C_DIM;
+            $status = C_RED . '✗ ' . $shortErr . C_RESET;
+            $color = C_DIM;
         } else {
             $status = C_YELLOW . '⋯' . C_RESET;
-            $color  = C_DIM;
+            $color = C_DIM;
         }
 
         echo "  ";

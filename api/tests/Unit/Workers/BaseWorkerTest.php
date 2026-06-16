@@ -49,14 +49,17 @@ function mockPdo(bool $alreadyProcessed = false): PDO
     $pdo    = Mockery::mock(PDO::class);
     $select = Mockery::mock(PDOStatement::class);
     $insert = Mockery::mock(PDOStatement::class);
+    $update = Mockery::mock(PDOStatement::class);
 
     $pdo->shouldReceive('prepare')->with(Mockery::pattern('/SELECT/'))->andReturn($select);
     $pdo->shouldReceive('prepare')->with(Mockery::pattern('/INSERT/'))->andReturn($insert);
+    $pdo->shouldReceive('prepare')->with(Mockery::pattern('/UPDATE/'))->andReturn($update);
 
     $select->shouldReceive('execute')->andReturn(true);
     $select->shouldReceive('fetch')->andReturn($alreadyProcessed ? ['1'] : false);
 
     $insert->shouldReceive('execute')->andReturn(true);
+    $update->shouldReceive('execute')->andReturn(true);
 
     return $pdo;
 }
@@ -151,7 +154,7 @@ it('sendHeartbeat sets Redis key worker:heartbeat:{id} with TTL = HEARTBEAT_INTE
 
     $channel = Mockery::mock(AMQPChannel::class);
     $redis   = Mockery::mock(Redis::class);
-    $redis->shouldReceive('get')->andReturn(false)->once();
+    $redis->shouldReceive('get')->andReturn(false)->byDefault();
     $redis->shouldReceive('setex')
         ->once()
         ->withArgs(function (string $key, int $ttl) {

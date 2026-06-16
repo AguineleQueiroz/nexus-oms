@@ -10,14 +10,16 @@ class Connection
 {
     private static ?PDO $instance = null;
 
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 
     public static function getInstance(): PDO
     {
         if (self::$instance === null) {
             $host = $_ENV['DB_HOST'] ?? 'localhost';
             $port = $_ENV['DB_PORT'] ?? '5432';
-            $db   = $_ENV['DB_DATABASE'] ?? 'oms';
+            $db = $_ENV['DB_DATABASE'] ?? 'oms';
             $user = $_ENV['DB_USERNAME'] ?? 'user';
             $pass = $_ENV['DB_PASSWORD'] ?? 'secret';
 
@@ -27,7 +29,7 @@ class Connection
                     $user,
                     $pass,
                     [
-                        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     ]
                 );

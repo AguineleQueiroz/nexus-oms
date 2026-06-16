@@ -1,13 +1,13 @@
 <template>
   <div class="app-layout">
-    <Sidebar />
+    <Sidebar/>
     <main class="main-content">
-      <slot />
+      <slot/>
     </main>
   </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import Sidebar from './Sidebar.vue'
 </script>
 
@@ -16,6 +16,7 @@ import Sidebar from './Sidebar.vue'
   display: flex;
   min-height: 100vh;
 }
+
 .main-content {
   flex: 1;
   padding: 24px;

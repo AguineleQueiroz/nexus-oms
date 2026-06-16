@@ -2,7 +2,6 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Dotenv\Dotenv;
 use App\Controllers\DashboardController;
 use App\Controllers\OrderController;
 use App\Database\Connection;
@@ -20,6 +19,7 @@ use App\Services\HeartbeatService;
 use App\Services\MailpitService;
 use App\Services\OrderService;
 use App\Services\RabbitMqManagement;
+use Dotenv\Dotenv;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 
 Dotenv::createUnsafeImmutable(__DIR__ . '/..')->safeLoad();
@@ -29,21 +29,21 @@ $request = Request::fromGlobals();
 $pipeline = new Pipeline(
     [new CorsMiddleware(), new JsonMiddleware()],
     function (Request $req) {
-        $pdo   = Connection::getInstance();
+        $pdo = Connection::getInstance();
         $redis = new Redis();
-        $redis->connect($_ENV['REDIS_HOST'] ?? 'redis', (int) ($_ENV['REDIS_PORT'] ?? 6379));
+        $redis->connect($_ENV['REDIS_HOST'] ?? 'redis', (int)($_ENV['REDIS_PORT'] ?? 6379));
 
         $orderRepo = new OrderRepository($pdo);
         $eventRepo = new EventRepository($pdo);
 
-        $readModel  = new ReadModelRepository($redis, $pdo);
-        $heartbeat  = new HeartbeatService($redis, $pdo);
-        $rabbitMq   = new RabbitMqManagement(
+        $readModel = new ReadModelRepository($redis, $pdo);
+        $heartbeat = new HeartbeatService($redis, $pdo);
+        $rabbitMq = new RabbitMqManagement(
             $_ENV['RABBITMQ_MANAGEMENT_URL'] ?? 'http://rabbitmq:15672',
             $_ENV['RABBITMQ_USER'] ?? 'guest',
             $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
         );
-        $mailpit    = new MailpitService(
+        $mailpit = new MailpitService(
             $_ENV['MAILPIT_URL'] ?? 'http://mailpit:8025',
         );
         $dashboardController = new DashboardController($readModel, $heartbeat, $rabbitMq, $mailpit);
@@ -57,14 +57,14 @@ $pipeline = new Pipeline(
          * Order routes require AMQP — connect only if necessary.
          */
         try {
-            $amqp    = new AMQPStreamConnection(
+            $amqp = new AMQPStreamConnection(
                 $_ENV['RABBITMQ_HOST'] ?? 'rabbitmq',
-                (int) ($_ENV['RABBITMQ_PORT'] ?? 5672),
+                (int)($_ENV['RABBITMQ_PORT'] ?? 5672),
                 $_ENV['RABBITMQ_USER'] ?? 'guest',
                 $_ENV['RABBITMQ_PASSWORD'] ?? 'guest',
             );
-            $channel      = $amqp->channel();
-            $publisher    = new EventPublisher($channel);
+            $channel = $amqp->channel();
+            $publisher = new EventPublisher($channel);
             $orderService = new OrderService($orderRepo, $eventRepo, $publisher);
 
             $orderController = new OrderController($orderService, $orderRepo, $eventRepo);

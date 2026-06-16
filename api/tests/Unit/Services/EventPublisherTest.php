@@ -6,7 +6,7 @@ use Mockery\MockInterface;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
-afterEach(fn () => Mockery::close());
+afterEach(fn() => Mockery::close());
 
 it('publish calls basic_publish on exchange orders with the event routing key', function () {
     /** @var AMQPChannel&MockInterface $channel */
@@ -18,7 +18,7 @@ it('publish calls basic_publish on exchange orders with the event routing key', 
         });
 
     $publisher = new EventPublisher($channel);
-    $event     = OrderEvent::create('order.created', 'order-uuid-123', ['total' => 100.0]);
+    $event = OrderEvent::create('order.created', 'order-uuid-123', ['total' => 100.0]);
 
     $publisher->publish($event);
 });
@@ -34,7 +34,7 @@ it('publish encodes the event as JSON in the message body', function () {
         });
 
     $publisher = new EventPublisher($channel);
-    $event     = OrderEvent::create('order.payment.approved', 'order-abc', ['total' => 50.0]);
+    $event = OrderEvent::create('order.payment.approved', 'order-abc', ['total' => 50.0]);
 
     $publisher->publish($event);
 });
@@ -49,7 +49,7 @@ it('publish sets the message content_type to application/json', function () {
         });
 
     $publisher = new EventPublisher($channel);
-    $event     = OrderEvent::create('order.shipped', 'order-abc', []);
+    $event = OrderEvent::create('order.shipped', 'order-abc', []);
 
     $publisher->publish($event);
 });
@@ -64,7 +64,7 @@ it('publish sets delivery_mode to persistent (2)', function () {
         });
 
     $publisher = new EventPublisher($channel);
-    $event     = OrderEvent::create('order.cancelled', 'order-abc', []);
+    $event = OrderEvent::create('order.cancelled', 'order-abc', []);
 
     $publisher->publish($event);
 });
@@ -112,7 +112,7 @@ it('setupExchangesAndQueues binds orders.audit with wildcard order.#', function 
     $channel->shouldReceive('exchange_declare')->once();
     $channel->shouldReceive('queue_declare')->times(8);
     $channel->shouldReceive('queue_bind')
-        ->withArgs(fn (string $q, string $ex, string $rk) => $q === 'orders.audit' && $rk === 'order.#')
+        ->withArgs(fn(string $q, string $ex, string $rk) => $q === 'orders.audit' && $rk === 'order.#')
         ->once();
     $channel->shouldReceive('queue_bind')->zeroOrMoreTimes();
 

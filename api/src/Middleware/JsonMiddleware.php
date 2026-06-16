@@ -14,7 +14,7 @@ class JsonMiddleware implements MiddlewareInterface
         if (in_array($request->getMethod(), self::BODY_METHODS, true)) {
             $contentType = $request->getHeader('Content-Type') ?? '';
 
-            if (! str_contains($contentType, 'application/json')) {
+            if (!str_contains($contentType, 'application/json')) {
                 return Response::json(['error' => 'Unsupported Media Type'], 415);
             }
 

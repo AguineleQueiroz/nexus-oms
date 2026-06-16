@@ -7,15 +7,15 @@ use App\Repositories\OrderRepository;
 
 beforeEach(function () {
     Connection::getInstance()->beginTransaction();
-    $pdo         = Connection::getInstance();
-    $this->repo  = new EventRepository($pdo);
+    $pdo = Connection::getInstance();
+    $this->repo = new EventRepository($pdo);
     $this->orderRepo = new OrderRepository($pdo);
 
     $order = $this->orderRepo->save([
-        'customer_name'   => 'Test User',
-        'customer_email'  => 'test@example.com',
-        'items'           => [['product' => 'Item', 'qty' => 1, 'price' => 10.0]],
-        'total'           => 10.0,
+        'customer_name' => 'Test User',
+        'customer_email' => 'test@example.com',
+        'items' => [['product' => 'Item', 'qty' => 1, 'price' => 10.0]],
+        'total' => 10.0,
         'idempotency_key' => null,
     ]);
     $this->orderId = $order['id'];

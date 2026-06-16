@@ -12,7 +12,7 @@ use Random\RandomException;
 class OrderService
 {
     private const TRANSITIONS = [
-        'paid'    => 'picking',
+        'paid' => 'picking',
         'picking' => 'shipped',
         'shipped' => 'delivered',
     ];
@@ -23,7 +23,9 @@ class OrderService
         private readonly OrderRepository $orderRepo,
         private readonly EventRepository $eventRepo,
         private readonly EventPublisher  $publisher,
-    ) {}
+    )
+    {
+    }
 
     public function createOrder(array $data): array
     {
@@ -46,6 +48,24 @@ class OrderService
         return $order;
     }
 
+    /**
+     * @throws RandomException
+     */
+    private function publishAndRecord(array $order, string $eventType): void
+    {
+        $payload = [
+            'customer_name' => $order['customer_name'],
+            'customer_email' => $order['customer_email'],
+            'total' => $order['total'],
+            'status' => $order['status'],
+        ];
+
+        $event = OrderEvent::create($eventType, $order['id'], $payload);
+
+        $this->eventRepo->save($event, $eventType);
+        $this->publisher->publish($event);
+    }
+
     public function approvePayment(string $orderId): array
     {
         $order = $this->fetchOrFail($orderId);
@@ -57,6 +77,24 @@ class OrderService
         $this->publishAndRecord($order, 'order.payment.approved');
 
         return $order;
+    }
+
+    private function fetchOrFail(string $orderId): array
+    {
+        $order = $this->orderRepo->findById($orderId);
+        if ($order === null) {
+            throw new OrderNotFoundException("Order #{$orderId} not found.");
+        }
+        return $order;
+    }
+
+    private function assertStatus(array $order, string $expected, string $action): void
+    {
+        if ($order['status'] !== $expected) {
+            throw new InvalidTransitionException(
+                "Cannot {$action} for order #{$order['id']} in status '{$order['status']}'."
+            );
+        }
     }
 
     public function refusePayment(string $orderId): array
@@ -92,7 +130,7 @@ class OrderService
 
     public function advance(string $orderId): array
     {
-        $order  = $this->fetchOrFail($orderId);
+        $order = $this->fetchOrFail($orderId);
         $status = $order['status'];
 
         if (!isset(self::TRANSITIONS[$status])) {
@@ -106,49 +144,13 @@ class OrderService
         $order['status'] = $next;
 
         $eventTypeMap = [
-            'picking'   => 'order.picking',
-            'shipped'   => 'order.shipped',
+            'picking' => 'order.picking',
+            'shipped' => 'order.shipped',
             'delivered' => 'order.delivered',
         ];
 
         $this->publishAndRecord($order, $eventTypeMap[$next]);
 
         return $order;
-    }
-
-    private function fetchOrFail(string $orderId): array
-    {
-        $order = $this->orderRepo->findById($orderId);
-        if ($order === null) {
-            throw new OrderNotFoundException("Order #{$orderId} not found.");
-        }
-        return $order;
-    }
-
-    private function assertStatus(array $order, string $expected, string $action): void
-    {
-        if ($order['status'] !== $expected) {
-            throw new InvalidTransitionException(
-                "Cannot {$action} for order #{$order['id']} in status '{$order['status']}'."
-            );
-        }
-    }
-
-    /**
-     * @throws RandomException
-     */
-    private function publishAndRecord(array $order, string $eventType): void
-    {
-        $payload = [
-            'customer_name'  => $order['customer_name'],
-            'customer_email' => $order['customer_email'],
-            'total'          => $order['total'],
-            'status'         => $order['status'],
-        ];
-
-        $event = OrderEvent::create($eventType, $order['id'], $payload);
-
-        $this->eventRepo->save($event, $eventType);
-        $this->publisher->publish($event);
     }
 }

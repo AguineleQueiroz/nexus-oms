@@ -5,9 +5,9 @@ use App\Http\Response;
 use App\Middleware\CorsMiddleware;
 
 it('OPTIONS preflight returns 204 with Access-Control headers', function () {
-    $cors     = new CorsMiddleware();
-    $request  = Request::create('OPTIONS', '/api/orders');
-    $next     = fn (Request $req) => Response::json(['ok' => true]);
+    $cors = new CorsMiddleware();
+    $request = Request::create('OPTIONS', '/api/orders');
+    $next = fn(Request $req) => Response::json(['ok' => true]);
 
     $response = $cors->handle($request, $next);
 
@@ -18,9 +18,9 @@ it('OPTIONS preflight returns 204 with Access-Control headers', function () {
 });
 
 it('non-OPTIONS requests pass through to next with CORS headers added', function () {
-    $cors    = new CorsMiddleware();
+    $cors = new CorsMiddleware();
     $request = Request::create('GET', '/api/orders');
-    $next    = fn (Request $req) => Response::json(['data' => []], 200);
+    $next = fn(Request $req) => Response::json(['data' => []], 200);
 
     $response = $cors->handle($request, $next);
 

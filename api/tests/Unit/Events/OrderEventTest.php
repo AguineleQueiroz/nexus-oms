@@ -20,7 +20,7 @@ it('create sets occurred_at as ISO-8601', function () {
 
 it('create stores event_type, order_id and payload', function () {
     $payload = ['customer_name' => 'João Silva', 'total' => 549.60];
-    $event   = OrderEvent::create('order.payment.approved', 'order-abc', $payload);
+    $event = OrderEvent::create('order.payment.approved', 'order-abc', $payload);
 
     expect($event->eventType)->toBe('order.payment.approved')
         ->and($event->orderId)->toBe('order-abc')
@@ -29,8 +29,8 @@ it('create stores event_type, order_id and payload', function () {
 
 it('toArray produces the exact structure defined in SPECS', function () {
     $payload = ['customer_name' => 'João', 'total' => 100.0];
-    $event   = OrderEvent::create('order.created', 'order-uuid-123', $payload);
-    $array   = $event->toArray();
+    $event = OrderEvent::create('order.created', 'order-uuid-123', $payload);
+    $array = $event->toArray();
 
     expect($array)->toHaveKeys(['event_id', 'event_type', 'order_id', 'occurred_at', 'payload'])
         ->and($array['event_type'])->toBe('order.created')
@@ -39,13 +39,13 @@ it('toArray produces the exact structure defined in SPECS', function () {
 });
 
 it('throws InvalidArgumentException for unknown event_type', function () {
-    expect(fn () => OrderEvent::create('order.unknown_type', 'order-uuid', []))
+    expect(fn() => OrderEvent::create('order.unknown_type', 'order-uuid', []))
         ->toThrow(InvalidArgumentException::class);
 });
 
 it('is immutable — properties cannot be changed after creation', function () {
     $event = OrderEvent::create('order.created', 'order-uuid-123', []);
 
-    expect(fn () => $event->eventId = 'changed')
+    expect(fn() => $event->eventId = 'changed')
         ->toThrow(Error::class);
 });

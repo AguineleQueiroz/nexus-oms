@@ -6,15 +6,17 @@ class RabbitMqManagement
 {
     public function __construct(
         private readonly string $baseUrl,
-        private readonly string $user     = 'guest',
+        private readonly string $user = 'guest',
         private readonly string $password = 'guest',
-    ) {}
+    )
+    {
+    }
 
     public function getQueues(): array
     {
         $context = stream_context_create([
             'http' => [
-                'header'  => 'Authorization: Basic ' . base64_encode("{$this->user}:{$this->password}"),
+                'header' => 'Authorization: Basic ' . base64_encode("{$this->user}:{$this->password}"),
                 'timeout' => 3,
             ],
         ]);

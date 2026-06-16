@@ -14,14 +14,16 @@ class Request
         private readonly string $rawBody,
         private readonly array  $queryParams,
         private readonly array  $headers,
-    ) {}
+    )
+    {
+    }
 
     public static function fromGlobals(): self
     {
         return new self(
             strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET'),
             $_SERVER['REQUEST_URI'] ?? '/',
-            (string) file_get_contents('php://input'),
+            (string)file_get_contents('php://input'),
             $_GET ?? [],
             function_exists('getallheaders') ? (getallheaders() ?: []) : [],
         );
@@ -33,14 +35,30 @@ class Request
         string $body = '',
         array  $queryParams = [],
         array  $headers = [],
-    ): self {
+    ): self
+    {
         return new self(strtoupper($method), $uri, $body, $queryParams, $headers);
     }
 
-    public function getMethod(): string  { return $this->method; }
-    public function getUri(): string     { return $this->uri; }
-    public function getRawBody(): string { return $this->rawBody; }
-    public function getHeaders(): array  { return $this->headers; }
+    public function getMethod(): string
+    {
+        return $this->method;
+    }
+
+    public function getUri(): string
+    {
+        return $this->uri;
+    }
+
+    public function getRawBody(): string
+    {
+        return $this->rawBody;
+    }
+
+    public function getHeaders(): array
+    {
+        return $this->headers;
+    }
 
     public function getHeader(string $name): ?string
     {
@@ -53,15 +71,10 @@ class Request
         return null;
     }
 
-    public function json(): array
-    {
-        return $this->parsedBody ?? json_decode($this->rawBody, true) ?? [];
-    }
-
     public function withParsedBody(array $data): self
     {
-        $clone              = new self($this->method, $this->uri, $this->rawBody, $this->queryParams, $this->headers);
-        $clone->parsedBody  = $data;
+        $clone = new self($this->method, $this->uri, $this->rawBody, $this->queryParams, $this->headers);
+        $clone->parsedBody = $data;
         return $clone;
     }
 
@@ -72,11 +85,11 @@ class Request
 
     public function validate(array $rules): void
     {
-        $body   = $this->json();
+        $body = $this->json();
         $errors = [];
 
         foreach ($rules as $field => $rule) {
-            if ($rule === 'required' && (! isset($body[$field]) || $body[$field] === '')) {
+            if ($rule === 'required' && (!isset($body[$field]) || $body[$field] === '')) {
                 $errors[$field] = "{$field} is required";
             }
         }
@@ -84,5 +97,10 @@ class Request
         if ($errors !== []) {
             throw new ValidationException($errors);
         }
+    }
+
+    public function json(): array
+    {
+        return $this->parsedBody ?? json_decode($this->rawBody, true) ?? [];
     }
 }

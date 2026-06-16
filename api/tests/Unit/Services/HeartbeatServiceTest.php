@@ -6,6 +6,7 @@ afterEach(fn () => Mockery::close());
 
 it('register() sets worker heartbeat in Redis with correct JSON structure', function () {
     $redis = Mockery::mock(Redis::class);
+    $redis->shouldReceive('get')->with('worker:heartbeat:pay-1')->andReturn(false)->once();
     $redis->shouldReceive('set')
         ->once()
         ->withArgs(function (string $key, string $value) {

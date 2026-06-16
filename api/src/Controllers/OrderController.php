@@ -19,15 +19,17 @@ class OrderController
         private readonly OrderService    $orderService,
         private readonly OrderRepository $orderRepo,
         private readonly EventRepository $eventRepo,
-    ) {}
+    )
+    {
+    }
 
     public function create(Request $request): Response
     {
         try {
             $request->validate([
-                'customer_name'  => 'required',
+                'customer_name' => 'required',
                 'customer_email' => 'required',
-                'items'          => 'required',
+                'items' => 'required',
             ]);
 
             $data = $request->json();
@@ -65,8 +67,8 @@ class OrderController
             $filters['status'] = $request->get('status');
         }
 
-        $page    = max(1, (int) ($request->get('page', 1)));
-        $perPage = max(1, min(100, (int) ($request->get('per_page', 20))));
+        $page = max(1, (int)($request->get('page', 1)));
+        $perPage = max(1, min(100, (int)($request->get('per_page', 20))));
 
         $result = $this->orderRepo->findAll($filters, $page, $perPage);
 
@@ -91,22 +93,7 @@ class OrderController
 
     public function pay(Request $request, string $id): Response
     {
-        return $this->runTransition($id, fn () => $this->orderService->approvePayment($id));
-    }
-
-    public function refusePayment(Request $request, string $id): Response
-    {
-        return $this->runTransition($id, fn () => $this->orderService->refusePayment($id));
-    }
-
-    public function cancel(Request $request, string $id): Response
-    {
-        return $this->runTransition($id, fn () => $this->orderService->cancel($id));
-    }
-
-    public function advance(Request $request, string $id): Response
-    {
-        return $this->runTransition($id, fn () => $this->orderService->advance($id));
+        return $this->runTransition($id, fn() => $this->orderService->approvePayment($id));
     }
 
     private function runTransition(string $id, callable $transition): Response
@@ -125,5 +112,20 @@ class OrderController
         } catch (\Throwable $e) {
             return Response::json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function refusePayment(Request $request, string $id): Response
+    {
+        return $this->runTransition($id, fn() => $this->orderService->refusePayment($id));
+    }
+
+    public function cancel(Request $request, string $id): Response
+    {
+        return $this->runTransition($id, fn() => $this->orderService->cancel($id));
+    }
+
+    public function advance(Request $request, string $id): Response
+    {
+        return $this->runTransition($id, fn() => $this->orderService->advance($id));
     }
 }

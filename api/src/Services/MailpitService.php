@@ -4,7 +4,9 @@ namespace App\Services;
 
 class MailpitService
 {
-    public function __construct(private readonly string $baseUrl) {}
+    public function __construct(private readonly string $baseUrl)
+    {
+    }
 
     public function getMessages(int $limit = 50): array
     {
@@ -16,15 +18,15 @@ class MailpitService
         $data = json_decode($json, true);
 
         return [
-            'total'    => $data['total'] ?? 0,
+            'total' => $data['total'] ?? 0,
             'messages' => array_map(fn($m) => [
-                'id'      => $m['ID'],
+                'id' => $m['ID'],
                 'subject' => $m['Subject'],
-                'from'    => $m['From']['Address'] ?? '',
-                'to'      => implode(', ', array_column($m['To'] ?? [], 'Address')),
+                'from' => $m['From']['Address'] ?? '',
+                'to' => implode(', ', array_column($m['To'] ?? [], 'Address')),
                 'snippet' => $m['Snippet'] ?? '',
                 'created' => $m['Created'],
-                'read'    => $m['Read'] ?? false,
+                'read' => $m['Read'] ?? false,
             ], $data['messages'] ?? []),
         ];
     }
@@ -39,11 +41,11 @@ class MailpitService
         $m = json_decode($json, true);
 
         return [
-            'id'      => $m['ID'],
+            'id' => $m['ID'],
             'subject' => $m['Subject'],
-            'from'    => $m['From']['Address'] ?? '',
-            'to'      => implode(', ', array_column($m['To'] ?? [], 'Address')),
-            'text'    => trim($m['Text'] ?? ''),
+            'from' => $m['From']['Address'] ?? '',
+            'to' => implode(', ', array_column($m['To'] ?? [], 'Address')),
+            'text' => trim($m['Text'] ?? ''),
             'created' => $m['Date'] ?? $m['Created'] ?? null,
         ];
     }

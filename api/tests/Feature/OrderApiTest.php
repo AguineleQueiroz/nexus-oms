@@ -15,8 +15,8 @@ beforeEach(function () {
     $mockPublisher = Mockery::mock(EventPublisher::class);
     $mockPublisher->shouldReceive('publish')->andReturnNull();
 
-    $orderRepo  = new OrderRepository($this->pdo);
-    $eventRepo  = new EventRepository($this->pdo);
+    $orderRepo = new OrderRepository($this->pdo);
+    $eventRepo = new EventRepository($this->pdo);
     $orderService = new OrderService($orderRepo, $eventRepo, $mockPublisher);
 
     $this->controller = new OrderController($orderService, $orderRepo, $eventRepo);
@@ -30,9 +30,9 @@ afterEach(function () {
 function validOrderBody(array $override = []): string
 {
     return json_encode(array_merge([
-        'customer_name'  => 'João Silva',
+        'customer_name' => 'João Silva',
         'customer_email' => 'joao@exemplo.com',
-        'items'          => [
+        'items' => [
             ['product' => 'Tênis Nike Air', 'qty' => 1, 'price' => 459.90],
         ],
     ], $override));

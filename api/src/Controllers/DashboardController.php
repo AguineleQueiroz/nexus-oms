@@ -16,21 +16,23 @@ class DashboardController
         private readonly HeartbeatService    $heartbeat,
         private readonly RabbitMqManagement  $rabbitMq,
         private readonly ?MailpitService     $mailpit = null,
-    ) {}
+    )
+    {
+    }
 
     public function stats(Request $request): Response
     {
         $workers = $this->heartbeat->getAll();
 
         $consumerStats = [
-            'active'  => count(array_filter($workers, fn($w) => ($w['status'] ?? '') === 'active')),
-            'idle'    => count(array_filter($workers, fn($w) => ($w['status'] ?? '') === 'idle')),
+            'active' => count(array_filter($workers, fn($w) => ($w['status'] ?? '') === 'active')),
+            'idle' => count(array_filter($workers, fn($w) => ($w['status'] ?? '') === 'idle')),
             'stopped' => count(array_filter($workers, fn($w) => ($w['status'] ?? '') === 'stopped')),
         ];
 
         return Response::json([
-            'orders'    => $this->readModel->getOrderStats(),
-            'events'    => $this->readModel->getEventStats(),
+            'orders' => $this->readModel->getOrderStats(),
+            'events' => $this->readModel->getEventStats(),
             'consumers' => $consumerStats,
         ]);
     }
@@ -52,7 +54,7 @@ class DashboardController
 
     public function eventFeed(Request $request): Response
     {
-        $limit = max(1, min(200, (int) ($request->get('limit', 50))));
+        $limit = max(1, min(200, (int)($request->get('limit', 50))));
         return Response::json($this->readModel->getEventFeed($limit));
     }
 
@@ -81,7 +83,7 @@ class DashboardController
                 : Response::json(['error' => 'Message not found'], 404);
         }
 
-        $limit = max(1, min(200, (int) $request->get('limit', 50)));
+        $limit = max(1, min(200, (int)$request->get('limit', 50)));
         return Response::json($this->mailpit->getMessages($limit));
     }
 }

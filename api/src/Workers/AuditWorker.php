@@ -10,13 +10,14 @@ use PhpAmqpLib\Channel\AMQPChannel;
 class AuditWorker extends BaseWorker
 {
     public function __construct(
-        AMQPChannel           $channel,
-        \Redis                $redis,
-        \PDO                  $pdo,
-        string                $workerId,
+        AMQPChannel                          $channel,
+        \Redis                               $redis,
+        \PDO                                 $pdo,
+        string                               $workerId,
         private readonly EventRepository     $eventRepo,
         private readonly ReadModelRepository $readModel,
-    ) {
+    )
+    {
         parent::__construct($channel, $redis, $pdo, $workerId);
     }
 
@@ -27,7 +28,7 @@ class AuditWorker extends BaseWorker
             $this->eventRepo->save($orderEvent, $event['event_type']);
 
             $snapshot = array_merge($event['payload'] ?? [], [
-                'id'         => $event['order_id'],
+                'id' => $event['order_id'],
                 'updated_at' => $event['occurred_at'],
             ]);
             $this->readModel->updateOrderSnapshot($event['order_id'], $snapshot);

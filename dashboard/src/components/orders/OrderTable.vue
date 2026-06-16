@@ -2,10 +2,10 @@
   <div class="order-table-wrapper">
     <div class="table-controls">
       <select
-        data-testid="status-filter"
-        :value="filters.status"
-        class="filter-select"
-        @change="emit('filter', ($event.target as HTMLSelectElement).value)"
+          :value="filters.status"
+          class="filter-select"
+          data-testid="status-filter"
+          @change="emit('filter', ($event.target as HTMLSelectElement).value)"
       >
         <option value="">Todos os status</option>
         <option value="created">Criado</option>
@@ -20,28 +20,28 @@
     </div>
     <table class="order-table">
       <thead>
-        <tr>
-          <th>ID</th>
-          <th>Cliente</th>
-          <th>Status</th>
-          <th>Total</th>
-          <th>Criado em</th>
-        </tr>
+      <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Status</th>
+        <th>Total</th>
+        <th>Criado em</th>
+      </tr>
       </thead>
       <tbody>
-        <tr
+      <tr
           v-for="order in orders"
           :key="order.id"
-          data-testid="order-row"
           class="order-row"
+          data-testid="order-row"
           @click="emit('select', order.id)"
-        >
-          <td><code>{{ order.id.slice(0, 8) }}</code></td>
-          <td>{{ order.customer_name }}</td>
-          <td><span :class="['status-chip', order.status]">{{ order.status }}</span></td>
-          <td>R$ {{ (order.total / 100).toFixed(2) }}</td>
-          <td>{{ formatDate(order.created_at) }}</td>
-        </tr>
+      >
+        <td><code>{{ order.id.slice(0, 8) }}</code></td>
+        <td>{{ order.customer_name }}</td>
+        <td><span :class="['status-chip', order.status]">{{ order.status }}</span></td>
+        <td>R$ {{ (order.total / 100).toFixed(2) }}</td>
+        <td>{{ formatDate(order.created_at) }}</td>
+      </tr>
       </tbody>
     </table>
     <div v-if="orders.length === 0" class="table-empty">Nenhum pedido encontrado.</div>
@@ -56,8 +56,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import type { Order } from '@/types'
+<script lang="ts" setup>
+import type {Order} from '@/types'
 
 defineProps<{
   orders: Order[]
@@ -68,7 +68,7 @@ defineProps<{
 const emit = defineEmits<{
   select: [id: string]
   filter: [status: string]
-  page:   [page: number]
+  page: [page: number]
 }>()
 
 function formatDate(iso: string): string {
@@ -78,8 +78,17 @@ function formatDate(iso: string): string {
 </script>
 
 <style scoped>
-.order-table-wrapper { display: flex; flex-direction: column; gap: 12px; }
-.table-controls { display: flex; gap: 8px; }
+.order-table-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.table-controls {
+  display: flex;
+  gap: 8px;
+}
+
 .filter-select {
   padding: 6px 10px;
   background: var(--color-surface);
@@ -88,7 +97,13 @@ function formatDate(iso: string): string {
   color: var(--color-text);
   font-size: 13px;
 }
-.order-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
 .order-table th {
   padding: 8px 12px;
   text-align: left;
@@ -98,15 +113,21 @@ function formatDate(iso: string): string {
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
 }
+
 .order-row {
   cursor: pointer;
   transition: background 0.1s;
 }
-.order-row:hover td { background: var(--color-surface-2); }
+
+.order-row:hover td {
+  background: var(--color-surface-2);
+}
+
 .order-row td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--color-border);
 }
+
 .status-chip {
   font-size: 11px;
   font-weight: 600;
@@ -116,10 +137,28 @@ function formatDate(iso: string): string {
   background: var(--color-surface-2);
   color: var(--color-text-muted);
 }
-.status-chip.paid       { background: rgba(16,185,129,0.15); color: var(--color-green); }
-.status-chip.delivered  { background: rgba(99,102,241,0.15); color: var(--color-primary); }
-.status-chip.cancelled  { background: rgba(239,68,68,0.15);  color: var(--color-red); }
-.table-empty { text-align: center; padding: 40px; color: var(--color-text-muted); }
+
+.status-chip.paid {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-green);
+}
+
+.status-chip.delivered {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary);
+}
+
+.status-chip.cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-red);
+}
+
+.table-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-muted);
+}
+
 .table-pagination {
   display: flex;
   justify-content: space-between;
@@ -127,7 +166,13 @@ function formatDate(iso: string): string {
   font-size: 12px;
   color: var(--color-text-muted);
 }
-.pagination-controls { display: flex; align-items: center; gap: 12px; }
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .pagination-controls button {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -136,5 +181,9 @@ function formatDate(iso: string): string {
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
-.pagination-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.pagination-controls button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
 </style>

@@ -5,7 +5,7 @@ use PhpAmqpLib\Connection\AMQPStreamConnection;
 test('postgresql connects with env credentials', function () {
     $host = getenv('DB_HOST');
     $port = getenv('DB_PORT');
-    $db   = getenv('DB_DATABASE');
+    $db = getenv('DB_DATABASE');
     $user = getenv('DB_USERNAME');
     $pass = getenv('DB_PASSWORD');
 
@@ -31,7 +31,7 @@ test('rabbitmq amqp connection succeeds', function () {
 
 test('redis ping returns pong', function () {
     $redis = new Redis();
-    $redis->connect(getenv('REDIS_HOST'), (int) getenv('REDIS_PORT'));
+    $redis->connect(getenv('REDIS_HOST'), (int)getenv('REDIS_PORT'));
 
     expect($redis->ping())->toBeTrue();
 });

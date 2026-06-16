@@ -16,10 +16,10 @@ afterEach(function () {
 function sampleOrderData(array $overrides = []): array
 {
     return array_merge([
-        'customer_name'   => 'João Silva',
-        'customer_email'  => 'joao@exemplo.com',
-        'items'           => [['product' => 'Tênis', 'qty' => 1, 'price' => 100.0]],
-        'total'           => 100.0,
+        'customer_name' => 'João Silva',
+        'customer_email' => 'joao@exemplo.com',
+        'items' => [['product' => 'Tênis', 'qty' => 1, 'price' => 100.0]],
+        'total' => 100.0,
         'idempotency_key' => null,
     ], $overrides);
 }
@@ -90,7 +90,7 @@ it('findAll paginates correctly', function () {
 it('save throws DuplicateOrderException when idempotency_key already exists', function () {
     $this->repo->save(sampleOrderData(['idempotency_key' => 'duplicate-key']));
 
-    expect(fn () => $this->repo->save(sampleOrderData(['idempotency_key' => 'duplicate-key'])))
+    expect(fn() => $this->repo->save(sampleOrderData(['idempotency_key' => 'duplicate-key'])))
         ->toThrow(DuplicateOrderException::class);
 });
 

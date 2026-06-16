@@ -10,7 +10,7 @@ function makePipeline(): Pipeline
 {
     return new Pipeline(
         [new CorsMiddleware(), new JsonMiddleware()],
-        fn (Request $req) => Response::json(['ok' => true])
+        fn(Request $req) => Response::json(['ok' => true])
     );
 }
 

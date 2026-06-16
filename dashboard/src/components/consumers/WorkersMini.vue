@@ -4,13 +4,13 @@
       Nenhum worker registrado
     </div>
     <div
-      v-for="w in consumers"
-      :key="w.worker_id"
-      :class="['worker-card', w.status]"
-      data-testid="worker-mini-card"
+        v-for="w in consumers"
+        :key="w.worker_id"
+        :class="['worker-card', w.status]"
+        data-testid="worker-mini-card"
     >
       <div class="wc-top">
-        <span :class="['wc-dot', w.status]" />
+        <span :class="['wc-dot', w.status]"/>
         <span class="wc-type">{{ shortType(w.worker_type) }}</span>
         <span :class="['wc-badge', w.status]">{{ w.status }}</span>
       </div>
@@ -20,22 +20,22 @@
           <span class="counter-value success">{{ w.events_processed.toLocaleString('pt-BR') }}</span>
           <span class="counter-label">processados</span>
         </div>
-        <div class="counter-divider" />
+        <div class="counter-divider"/>
         <div class="counter">
           <span :class="['counter-value', w.events_failed > 0 ? 'error' : 'muted']">{{ w.events_failed }}</span>
           <span class="counter-label">falhas</span>
         </div>
       </div>
       <div class="wc-heartbeat">
-        <span class="heartbeat-dot" />
+        <span class="heartbeat-dot"/>
         <span class="heartbeat-label">{{ heartbeatAgo(w.last_heartbeat) }}</span>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import type { Consumer } from '@/types'
+<script lang="ts" setup>
+import type {Consumer} from '@/types'
 
 defineProps<{ consumers: Consumer[] }>()
 
@@ -56,6 +56,7 @@ function heartbeatAgo(iso: string): string {
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 10px;
 }
+
 .workers-empty {
   color: var(--text-tertiary);
   font-size: 13px;
@@ -74,23 +75,44 @@ function heartbeatAgo(iso: string): string {
   gap: 8px;
   transition: border-color var(--transition-fast);
 }
-.worker-card.active  { border-color: rgba(0, 230, 118, 0.2); }
-.worker-card.idle    { border-color: rgba(255, 214, 0, 0.15); }
-.worker-card.stopped { border-color: rgba(255, 61, 0, 0.15); }
+
+.worker-card.active {
+  border-color: rgba(0, 230, 118, 0.2);
+}
+
+.worker-card.idle {
+  border-color: rgba(255, 214, 0, 0.15);
+}
+
+.worker-card.stopped {
+  border-color: rgba(255, 61, 0, 0.15);
+}
 
 .wc-top {
   display: flex;
   align-items: center;
   gap: 7px;
 }
+
 .wc-dot {
-  width: 7px; height: 7px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.wc-dot.active  { background: var(--success); animation: pulse-dot 2s ease-in-out infinite; }
-.wc-dot.idle    { background: var(--warning); }
-.wc-dot.stopped { background: var(--error); }
+
+.wc-dot.active {
+  background: var(--success);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.wc-dot.idle {
+  background: var(--warning);
+}
+
+.wc-dot.stopped {
+  background: var(--error);
+}
 
 .wc-type {
   font-size: 12px;
@@ -98,6 +120,7 @@ function heartbeatAgo(iso: string): string {
   color: var(--text-primary);
   flex: 1;
 }
+
 .wc-badge {
   font-size: 9px;
   font-weight: 600;
@@ -106,9 +129,21 @@ function heartbeatAgo(iso: string): string {
   padding: 2px 6px;
   border-radius: var(--radius-full);
 }
-.wc-badge.active  { background: var(--success-bg);  color: var(--success); }
-.wc-badge.idle    { background: var(--warning-bg);  color: var(--warning); }
-.wc-badge.stopped { background: var(--error-bg);    color: var(--error); }
+
+.wc-badge.active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.wc-badge.idle {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.wc-badge.stopped {
+  background: var(--error-bg);
+  color: var(--error);
+}
 
 .wc-queue {
   font-family: var(--font-mono);
@@ -127,6 +162,7 @@ function heartbeatAgo(iso: string): string {
   border-radius: var(--radius-sm);
   padding: 6px 10px;
 }
+
 .counter {
   display: flex;
   flex-direction: column;
@@ -134,21 +170,33 @@ function heartbeatAgo(iso: string): string {
   gap: 1px;
   flex: 1;
 }
+
 .counter-value {
   font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
 }
-.counter-value.success { color: var(--success); }
-.counter-value.error   { color: var(--error); }
-.counter-value.muted   { color: var(--text-tertiary); }
+
+.counter-value.success {
+  color: var(--success);
+}
+
+.counter-value.error {
+  color: var(--error);
+}
+
+.counter-value.muted {
+  color: var(--text-tertiary);
+}
+
 .counter-label {
   font-size: 9px;
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
 .counter-divider {
   width: 1px;
   height: 24px;
@@ -160,11 +208,14 @@ function heartbeatAgo(iso: string): string {
   align-items: center;
   gap: 5px;
 }
+
 .heartbeat-dot {
-  width: 5px; height: 5px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--text-tertiary);
 }
+
 .heartbeat-label {
   font-size: 10px;
   color: var(--text-tertiary);

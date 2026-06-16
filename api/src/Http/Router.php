@@ -13,6 +13,11 @@ class Router
         $this->add('GET', $path, $handler);
     }
 
+    private function add(string $method, string $path, callable $handler): void
+    {
+        $this->routes[] = [strtoupper($method), $path, $handler];
+    }
+
     public function post(string $path, callable $handler): void
     {
         $this->add('POST', $path, $handler);
@@ -21,7 +26,7 @@ class Router
     public function dispatch(Request $request): Response
     {
         $method = $request->getMethod();
-        $path   = strtok($request->getUri(), '?');
+        $path = strtok($request->getUri(), '?');
 
         foreach ($this->routes as [$routeMethod, $pattern, $handler]) {
             if ($routeMethod !== $method) {
@@ -35,11 +40,6 @@ class Router
         }
 
         return Response::json(['error' => 'Not found'], 404);
-    }
-
-    private function add(string $method, string $path, callable $handler): void
-    {
-        $this->routes[] = [strtoupper($method), $path, $handler];
     }
 
     private function toRegex(string $path): string

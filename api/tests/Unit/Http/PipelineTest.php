@@ -9,7 +9,10 @@ it('executes two middlewares in order', function () {
     $order = [];
 
     $m1 = new class ($order) implements MiddlewareInterface {
-        public function __construct(private array &$order) {}
+        public function __construct(private array &$order)
+        {
+        }
+
         public function handle(Request $req, callable $next): Response
         {
             $this->order[] = 'first';
@@ -18,7 +21,10 @@ it('executes two middlewares in order', function () {
     };
 
     $m2 = new class ($order) implements MiddlewareInterface {
-        public function __construct(private array &$order) {}
+        public function __construct(private array &$order)
+        {
+        }
+
         public function handle(Request $req, callable $next): Response
         {
             $this->order[] = 'second';
@@ -26,7 +32,7 @@ it('executes two middlewares in order', function () {
         }
     };
 
-    $pipeline = new Pipeline([$m1, $m2], fn (Request $req) => Response::json(['ok' => true]));
+    $pipeline = new Pipeline([$m1, $m2], fn(Request $req) => Response::json(['ok' => true]));
     $pipeline->run(Request::create('GET', '/'));
 
     expect($order)->toBe(['first', 'second']);
@@ -42,7 +48,7 @@ it('middleware that does not call next short-circuits the pipeline', function ()
         }
     };
 
-    $handler  = function () use (&$handlerCalled): Response {
+    $handler = function () use (&$handlerCalled): Response {
         $handlerCalled = true;
         return Response::json(['ok' => true]);
     };
@@ -57,7 +63,10 @@ it('final handler is called after all middlewares pass through', function () {
     $handlerCalled = false;
 
     $passthrough = new class implements MiddlewareInterface {
-        public function handle(Request $req, callable $next): Response { return $next($req); }
+        public function handle(Request $req, callable $next): Response
+        {
+            return $next($req);
+        }
     };
 
     $handler = function () use (&$handlerCalled): Response {

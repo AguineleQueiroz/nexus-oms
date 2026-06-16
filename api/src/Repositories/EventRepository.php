@@ -7,7 +7,9 @@ use PDO;
 
 class EventRepository
 {
-    public function __construct(private readonly PDO $pdo) {}
+    public function __construct(private readonly PDO $pdo)
+    {
+    }
 
     public function save(OrderEvent $event, string $routingKey, ?string $workerId = null): void
     {
@@ -17,12 +19,12 @@ class EventRepository
         ');
 
         $stmt->execute([
-            ':id'          => $event->eventId,
-            ':order_id'    => $event->orderId,
-            ':event_type'  => $event->eventType,
+            ':id' => $event->eventId,
+            ':order_id' => $event->orderId,
+            ':event_type' => $event->eventType,
             ':routing_key' => $routingKey,
-            ':payload'     => json_encode($event->payload),
-            ':worker_id'   => $workerId,
+            ':payload' => json_encode($event->payload),
+            ':worker_id' => $workerId,
         ]);
     }
 
@@ -52,7 +54,7 @@ class EventRepository
             $row['payload'] = json_decode($row['payload'], true);
         }
         if (isset($row['processed'])) {
-            $row['processed'] = (bool) $row['processed'];
+            $row['processed'] = (bool)$row['processed'];
         }
         return $row;
     }

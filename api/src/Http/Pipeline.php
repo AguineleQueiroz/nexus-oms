@@ -12,7 +12,8 @@ class Pipeline
     public function __construct(
         private readonly array $middlewares,
         callable               $handler,
-    ) {
+    )
+    {
         $this->handler = $handler;
     }
 
@@ -20,7 +21,7 @@ class Pipeline
     {
         $pipeline = array_reduce(
             array_reverse($this->middlewares),
-            fn (callable $next, MiddlewareInterface $middleware) => fn (Request $req) => $middleware->handle($req, $next),
+            fn(callable $next, MiddlewareInterface $middleware) => fn(Request $req) => $middleware->handle($req, $next),
             $this->handler,
         );
 

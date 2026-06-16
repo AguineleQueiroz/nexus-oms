@@ -14,7 +14,9 @@ class ReadModelRepository
     public function __construct(
         private readonly \Redis $redis,
         private readonly ?PDO   $pdo = null,
-    ) {}
+    )
+    {
+    }
 
     // --- Write side (called by AuditWorker) ---
 
@@ -38,11 +40,19 @@ class ReadModelRepository
 
         $counts = array_fill_keys(self::LIFECYCLE, 0);
         foreach ($rows as $row) {
-            $counts[$row['status']] = (int) $row['count'];
+            $counts[$row['status']] = (int)$row['count'];
         }
         $counts['total'] = array_sum($counts);
 
         return $counts;
+    }
+
+    private function pdo(): PDO
+    {
+        if ($this->pdo === null) {
+            throw new \LogicException('PDO is required for read-side operations.');
+        }
+        return $this->pdo;
     }
 
     public function getEventStats(): array
@@ -60,10 +70,10 @@ class ReadModelRepository
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return [
-            'published_last_hour'  => (int) ($row['published_last_hour']  ?? 0),
-            'processed_last_hour'  => (int) ($row['processed_last_hour']  ?? 0),
-            'failed_last_hour'     => (int) ($row['failed_last_hour']     ?? 0),
-            'dead'                 => 0,
+            'published_last_hour' => (int)($row['published_last_hour'] ?? 0),
+            'processed_last_hour' => (int)($row['processed_last_hour'] ?? 0),
+            'failed_last_hour' => (int)($row['failed_last_hour'] ?? 0),
+            'dead' => 0,
         ];
     }
 
@@ -80,18 +90,18 @@ class ReadModelRepository
         ");
 
         return array_map(
-            fn($r) => ['minute' => $r['minute'], 'count' => (int) $r['count']],
+            fn($r) => ['minute' => $r['minute'], 'count' => (int)$r['count']],
             $stmt->fetchAll(PDO::FETCH_ASSOC)
         );
     }
 
     public function getFunnel(): array
     {
-        $stmt   = $this->pdo()->query('SELECT status, COUNT(*) as count FROM orders GROUP BY status');
+        $stmt = $this->pdo()->query('SELECT status, COUNT(*) as count FROM orders GROUP BY status');
         $counts = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'count', 'status');
 
         return array_map(
-            fn($s) => ['status' => $s, 'count' => (int) ($counts[$s] ?? 0)],
+            fn($s) => ['status' => $s, 'count' => (int)($counts[$s] ?? 0)],
             self::LIFECYCLE
         );
     }
@@ -119,16 +129,8 @@ class ReadModelRepository
         );
 
         return array_map(
-            fn($r) => ['event_type' => $r['event_type'], 'count' => (int) $r['count']],
+            fn($r) => ['event_type' => $r['event_type'], 'count' => (int)$r['count']],
             $stmt->fetchAll(PDO::FETCH_ASSOC)
         );
-    }
-
-    private function pdo(): PDO
-    {
-        if ($this->pdo === null) {
-            throw new \LogicException('PDO is required for read-side operations.');
-        }
-        return $this->pdo;
     }
 }

@@ -52,24 +52,6 @@ services:
       - ./api:/app
       - api_vendor:/app/vendor
 
-  worker-notification-2:
-    build: ./api
-    command: php bin/run-worker.php
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    env_file: ./api/.env
-    environment:
-      WORKER_TYPE: NotificationWorker
-      WORKER_ID: notification-worker-2
-    volumes:
-      - ./api:/app
-      - api_vendor:/app/vendor
-
   worker-fulfillment:
     build: ./api
     command: php bin/run-worker.php
@@ -158,7 +140,7 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -175,7 +157,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./api/database/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d oms"]
+      test: [ "CMD-SHELL", "pg_isready -U user -d oms" ]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -8,7 +8,9 @@ use PDOException;
 
 class OrderRepository
 {
-    public function __construct(private readonly PDO $pdo) {}
+    public function __construct(private readonly PDO $pdo)
+    {
+    }
 
     public function save(array $data): array
     {
@@ -21,12 +23,12 @@ class OrderRepository
         try {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([
-                ':customer_name'   => $data['customer_name'],
-                ':customer_email'  => $data['customer_email'],
-                ':items'           => json_encode($data['items']),
-                ':total'           => $data['total'],
+                ':customer_name' => $data['customer_name'],
+                ':customer_email' => $data['customer_email'],
+                ':items' => json_encode($data['items']),
+                ':total' => $data['total'],
                 ':idempotency_key' => $data['idempotency_key'] ?? null,
-                ':metadata'        => json_encode($data['metadata'] ?? []),
+                ':metadata' => json_encode($data['metadata'] ?? []),
             ]);
 
             $row = $stmt->fetch();
@@ -41,6 +43,17 @@ class OrderRepository
             }
             throw $e;
         }
+    }
+
+    private function decodeJsonFields(array $row): array
+    {
+        if (isset($row['items']) && is_string($row['items'])) {
+            $row['items'] = json_decode($row['items'], true);
+        }
+        if (isset($row['metadata']) && is_string($row['metadata'])) {
+            $row['metadata'] = json_decode($row['metadata'], true);
+        }
+        return $row;
     }
 
     public function findById(string $id): ?array
@@ -63,20 +76,20 @@ class OrderRepository
 
     public function findAll(array $filters = [], int $page = 1, int $perPage = 20): array
     {
-        $where  = [];
+        $where = [];
         $params = [];
 
         if (!empty($filters['status'])) {
-            $where[]           = 'status = :status';
+            $where[] = 'status = :status';
             $params[':status'] = $filters['status'];
         }
 
         $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-        $offset      = ($page - 1) * $perPage;
+        $offset = ($page - 1) * $perPage;
 
         $countStmt = $this->pdo->prepare("SELECT COUNT(*) FROM orders {$whereClause}");
         $countStmt->execute($params);
-        $total = (int) $countStmt->fetchColumn();
+        $total = (int)$countStmt->fetchColumn();
 
         $dataStmt = $this->pdo->prepare(
             "SELECT * FROM orders {$whereClause} ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
@@ -93,9 +106,9 @@ class OrderRepository
         return [
             'data' => array_map([$this, 'decodeJsonFields'], $rows),
             'meta' => [
-                'page'     => $page,
+                'page' => $page,
                 'per_page' => $perPage,
-                'total'    => $total,
+                'total' => $total,
             ],
         ];
     }
@@ -114,16 +127,5 @@ class OrderRepository
             'UPDATE orders SET metadata = metadata || :metadata::jsonb, updated_at = clock_timestamp() WHERE id = :id'
         );
         $stmt->execute([':metadata' => json_encode($metadata), ':id' => $id]);
-    }
-
-    private function decodeJsonFields(array $row): array
-    {
-        if (isset($row['items']) && is_string($row['items'])) {
-            $row['items'] = json_decode($row['items'], true);
-        }
-        if (isset($row['metadata']) && is_string($row['metadata'])) {
-            $row['metadata'] = json_decode($row['metadata'], true);
-        }
-        return $row;
     }
 }

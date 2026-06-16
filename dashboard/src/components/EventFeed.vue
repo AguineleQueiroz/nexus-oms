@@ -1,16 +1,16 @@
 <template>
   <div class="event-feed">
-    <div v-if="events.length === 0" data-testid="event-empty" class="event-empty">
+    <div v-if="events.length === 0" class="event-empty" data-testid="event-empty">
       Aguardando eventos…
     </div>
-    <TransitionGroup v-else name="feed" tag="div" class="feed-list">
+    <TransitionGroup v-else class="feed-list" name="feed" tag="div">
       <div
-        v-for="event in events"
-        :key="event.id"
-        data-testid="event-row"
-        class="event-row"
+          v-for="event in events"
+          :key="event.id"
+          class="event-row"
+          data-testid="event-row"
       >
-        <span :class="['event-dot', dotClass(event.event_type)]" />
+        <span :class="['event-dot', dotClass(event.event_type)]"/>
         <div class="event-main">
           <code class="event-routing-key">{{ event.routing_key }}</code>
           <span class="event-order">{{ event.id.slice(0, 8) }}</span>
@@ -26,26 +26,30 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import type { OrderEvent } from '@/types'
+<script lang="ts" setup>
+import type {OrderEvent} from '@/types'
 
 defineProps<{ events: OrderEvent[] }>()
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return new Date(iso).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit', second: '2-digit'})
 }
 
 function dotClass(eventType: string): string {
   if (eventType.includes('approved') || eventType === 'order.delivered') return 'dot-success'
-  if (eventType.includes('refused')  || eventType === 'order.cancelled')  return 'dot-error'
-  if (eventType.includes('payment'))                                       return 'dot-warning'
-  if (eventType === 'order.shipped')                                       return 'dot-info'
+  if (eventType.includes('refused') || eventType === 'order.cancelled') return 'dot-error'
+  if (eventType.includes('payment')) return 'dot-warning'
+  if (eventType === 'order.shipped') return 'dot-info'
   return 'dot-default'
 }
 </script>
 
 <style scoped>
-.event-feed { display: flex; flex-direction: column; gap: 0; }
+.event-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
 
 .event-empty {
   color: var(--text-tertiary);
@@ -60,10 +64,23 @@ function dotClass(eventType: string): string {
 }
 
 /* TransitionGroup animations */
-.feed-enter-active { animation: slide-in-top 300ms ease; }
-.feed-leave-active { transition: opacity 200ms ease; position: absolute; width: 100%; }
-.feed-leave-to    { opacity: 0; }
-.feed-move        { transition: transform 300ms ease; }
+.feed-enter-active {
+  animation: slide-in-top 300ms ease;
+}
+
+.feed-leave-active {
+  transition: opacity 200ms ease;
+  position: absolute;
+  width: 100%;
+}
+
+.feed-leave-to {
+  opacity: 0;
+}
+
+.feed-move {
+  transition: transform 300ms ease;
+}
 
 .event-row {
   display: flex;
@@ -74,20 +91,45 @@ function dotClass(eventType: string): string {
   transition: background var(--transition-fast);
   font-size: 12px;
 }
-.event-row:last-child  { border-bottom: none; }
-.event-row:first-child { animation: slide-in-top 300ms ease; }
-.event-row:hover       { background: rgba(255,255,255,0.02); }
+
+.event-row:last-child {
+  border-bottom: none;
+}
+
+.event-row:first-child {
+  animation: slide-in-top 300ms ease;
+}
+
+.event-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
 
 .event-dot {
-  width: 7px; height: 7px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dot-success { background: var(--success); }
-.dot-error   { background: var(--error); }
-.dot-warning { background: var(--warning); }
-.dot-info    { background: var(--info); }
-.dot-default { background: var(--text-tertiary); }
+
+.dot-success {
+  background: var(--success);
+}
+
+.dot-error {
+  background: var(--error);
+}
+
+.dot-warning {
+  background: var(--warning);
+}
+
+.dot-info {
+  background: var(--info);
+}
+
+.dot-default {
+  background: var(--text-tertiary);
+}
 
 .event-main {
   flex: 1;
@@ -96,6 +138,7 @@ function dotClass(eventType: string): string {
   gap: 1px;
   overflow: hidden;
 }
+
 .event-routing-key {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -104,6 +147,7 @@ function dotClass(eventType: string): string {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .event-order {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -117,8 +161,24 @@ function dotClass(eventType: string): string {
   gap: 1px;
   flex-shrink: 0;
 }
-.event-time   { font-size: 10px; color: var(--text-tertiary); }
-.event-status { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-.processed    { color: var(--success); }
-.pending      { color: var(--warning); }
+
+.event-time {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.event-status {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.processed {
+  color: var(--success);
+}
+
+.pending {
+  color: var(--warning);
+}
 </style>

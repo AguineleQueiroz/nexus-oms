@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Request;
 use App\Exceptions\ValidationException;
+use App\Http\Request;
 
 it('fromGlobals populates method and uri from server globals', function () {
     $_SERVER['REQUEST_METHOD'] = 'POST';
-    $_SERVER['REQUEST_URI']    = '/api/orders';
+    $_SERVER['REQUEST_URI'] = '/api/orders';
 
     $request = Request::fromGlobals();
 
@@ -39,7 +39,7 @@ it('get returns null for missing key', function () {
 it('validate throws ValidationException when a required field is missing', function () {
     $request = Request::create('POST', '/test', json_encode(['name' => 'John']));
 
-    expect(fn () => $request->validate(['name' => 'required', 'email' => 'required']))
+    expect(fn() => $request->validate(['name' => 'required', 'email' => 'required']))
         ->toThrow(ValidationException::class);
 });
 

@@ -11,16 +11,18 @@ class EventPublisher
     private const EXCHANGE = 'orders';
     private const RETRY_TTL_BASE_MS = 30_000;
 
-    public function __construct(private readonly AMQPChannel $channel) {}
+    public function __construct(private readonly AMQPChannel $channel)
+    {
+    }
 
     public function publish(OrderEvent $event): void
     {
         $message = new AMQPMessage(
             json_encode($event->toArray()),
             [
-                'content_type'  => 'application/json',
+                'content_type' => 'application/json',
                 'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
-                'message_id'    => $event->eventId,
+                'message_id' => $event->eventId,
             ]
         );
 
@@ -66,18 +68,18 @@ class EventPublisher
     private function bindQueues(): void
     {
         $bindings = [
-            ['orders.audit',        'order.#'],
-            ['orders.payment',      'order.payment.*'],
+            ['orders.audit', 'order.#'],
+            ['orders.payment', 'order.payment.*'],
             ['orders.notification', 'order.created'],
             ['orders.notification', 'order.payment.*'],
             ['orders.notification', 'order.shipped'],
             ['orders.notification', 'order.delivered'],
             ['orders.notification', 'order.cancelled'],
-            ['orders.inventory',    'order.created'],
-            ['orders.inventory',    'order.picking'],
-            ['orders.inventory',    'order.cancelled'],
-            ['orders.tracking',     'order.shipped'],
-            ['orders.fulfillment',  'order.payment.approved'],
+            ['orders.inventory', 'order.created'],
+            ['orders.inventory', 'order.picking'],
+            ['orders.inventory', 'order.cancelled'],
+            ['orders.tracking', 'order.shipped'],
+            ['orders.fulfillment', 'order.payment.approved'],
         ];
 
         foreach ($bindings as [$queue, $routingKey]) {
